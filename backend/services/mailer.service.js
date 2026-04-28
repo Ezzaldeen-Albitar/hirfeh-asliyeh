@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import nodemailer from 'nodemailer';
 const createTransporter = () =>
     nodemailer.createTransport({
@@ -126,4 +124,3 @@ export async function sendArtisanVerifiedEmail(to, name) {
         html: artisanVerifiedTemplate(name),
     });
 }
->>>>>>> Stashed changes
