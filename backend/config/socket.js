@@ -1,8 +1,10 @@
 export function initSocket(io) {
     io.on('connection', (socket) => {
-        console.log('User connected to socket');
-        socket.on('disconnect', () => {
-            console.log('User disconnected');
+        socket.on('join-user', (userId) => {
+            socket.join(`user:${userId}`);
+        });
+        socket.on('join-chat', (requestId) => {
+            socket.join(`customization:${requestId}`);
         });
     });
 }
