@@ -1,32 +1,52 @@
 import crypto from 'crypto';
-import bcryptjs from 'bcryptjs';
+export const OTP_LENGTH = 6;
+export const OTP_EXPIRE_MINUTES = 10;
+export const OTP_MAX_ATTEMPTS = 5;
+export const OTP_COOLDOWN_MINS = 2;
+export function generateOTP(length = OTP_LENGTH) {
+    const min = Math.pow(10, length - 1);
+    const max = Math.pow(10, length) - 1;
+    return crypto.randomInt(min, max + 1).toString();
+}
+export function hashOTP(otp) {
+    return crypto.createHash('sha256').update(otp).digest('hex');
+}
 
-const OtpService = {
-  generateOTP(length = 6) {
-    let otp = '';
-    for (let i = 0; i < length; i++) {
-      otp += crypto.randomInt(0, 10);
-    }
-    return otp;
-  },
-
-  async hashOTP(otp) {
-    const salt = await bcryptjs.genSalt(10);
-    return await bcryptjs.hash(otp, salt);
-  },
-
-  async verifyOTP(otp, hashedOtp) {
+export function verifyOTP(inputOtp, storedHash) {
+    const inputHash = hashOTP(inputOtp);
     try {
-      return await bcryptjs.compare(otp, hashedOtp);
-    } catch (error) {
-      console.error('OTP verification error:', error);
-      return false;
+        return crypto.timingSafeEqual(
+            Buffer.from(inputHash, 'hex'),
+            Buffer.from(storedHash, 'hex')
+        );
+    } catch {
+        return false;
     }
-  },
+}
 
-  isExpired(expiresAt) {
-    return Date.now() > expiresAt;
-  }
-};
+export function isOTPExpired(expiresAt) {
+    return new Date() > new Date(expiresAt);
+}
 
-export default OtpService;
+
+export function canResendOTP(lastSentAt) {
+    if (!lastSentAt) return true;
+    const elapsed = Date.now() - new Date(lastSentAt).getTime();
+    return elapsed > OTP_COOLDOWN_MINS * 60 * 1000;
+}
+
+export function resendCooldownSeconds(lastSentAt) {
+    if (!lastSentAt) return 0;
+    const elapsed = Date.now() - new Date(lastSentAt).getTime();
+    const cooldownMs = OTP_COOLDOWN_MINS * 60 * 1000;
+    return Math.max(0, Math.ceil((cooldownMs - elapsed) / 1000));
+}
+export function buildOTPDoc(plainOtp) {
+    return {
+        code: hashOTP(plainOtp),
+        expiresAt: new Date(Date.now() + OTP_EXPIRE_MINUTES * 60 * 1000),
+        attempts: 0,
+        lastSentAt: new Date(),
+    };
+}
+
