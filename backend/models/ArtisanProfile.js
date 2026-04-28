@@ -31,7 +31,7 @@ const artisanProfileSchema = new mongoose.Schema({
             "Ajloun",
             "Ma'an",
             "Tafila",
-            "Mafraq"
+            "  "
         ]
     },
     specialties: [String],
