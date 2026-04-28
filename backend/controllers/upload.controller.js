@@ -1,70 +1,67 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { AppError } from '../utils/AppError.js';
-
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-export const uploadSingleImage = async (req, res, next) => {
-    try {
-        if (!req.file) {
-            return next(new AppError('Please upload an image', 400));
-        }
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-            folder: 'hirfeh-asliyeh/uploads',
-            resource_type: 'auto'
-        });
-        res.status(200).json({
-            status: 'success',
-            url: result.secure_url,
-            public_id: result.public_id
-        });
-    } catch (error) {
-        next(error);
+import cloudinary from '../config/cloudinary.js';
+import { createError } from '../middleware/error.middleware.js';
+async function uploadBufferToCloudinary(buffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const uploadOptions = {
+      folder: 'souqjo',
+      resource_type: 'image',
+      transformation: [
+        { quality: 'auto', fetch_format: 'auto' },
+        { width: 1200, crop: 'limit' },
+      ],
+      ...options,
+    };
+    const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+    uploadStream.end(buffer);
+  });
+}
+export async function uploadImage(req, res, next) {
+  try {
+    if (!req.file) throw createError(400, 'No image file provided.');
+    const folder = req.body.folder || 'products'; 
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: `souqjo/${folder}`,
+    });
+    return res.json({
+      url: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function uploadMultipleImages(req, res, next) {
+  try {
+    if (!req.files || req.files.length === 0) {
+      throw createError(400, 'No image files provided.');
     }
-};
-
-export const uploadMultipleImages = async (req, res, next) => {
-    try {
-        if (!req.files || req.files.length === 0) {
-            return next(new AppError('Please upload at least one image', 400));
-        }
-        const uploadPromises = req.files.map(file => {
-            const b64 = Buffer.from(file.buffer).toString('base64');
-            const dataURI = `data:${file.mimetype};base64,${b64}`;
-            return cloudinary.uploader.upload(dataURI, {
-                folder: 'hirfeh-asliyeh/products'
-            });
-        });
-        const results = await Promise.all(uploadPromises);
-        res.status(200).json({
-            status: 'success',
-            data: results.map(img => ({
-                url: img.secure_url,
-                public_id: img.public_id
-            }))
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const deleteImage = async (req, res, next) => {
-    try {
-        const { public_id } = req.body;
-        if (!public_id) {
-            return next(new AppError('Public ID is required to delete an image', 400));
-        }
-        const result = await cloudinary.uploader.destroy(public_id);
-        res.status(200).json({
-            status: 'success',
-            result
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+    const folder = req.body.folder || 'products';
+    const uploadPromises = req.files.map(file =>
+      uploadBufferToCloudinary(file.buffer, { folder: `souqjo/${folder}` })
+    );
+    const results = await Promise.all(uploadPromises);
+    return res.json({
+      images: results.map(r => ({
+        url: r.secure_url,
+        publicId: r.public_id,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function deleteImage(req, res, next) {
+  try {
+    const { publicId } = req.body;
+    if (!publicId) throw createError(400, 'Public ID is required.');
+    await cloudinary.uploader.destroy(publicId);
+    return res.json({ message: 'Image deleted.' });
+  } catch (err) {
+    next(err);
+  }
+}

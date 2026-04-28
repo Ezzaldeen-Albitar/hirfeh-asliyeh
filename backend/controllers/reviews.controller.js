@@ -1,94 +1,105 @@
 import Review from '../models/Review.js';
+import Order from '../models/Order.js';
 import Product from '../models/Product.js';
-import { AppError } from '../utils/AppError.js';
+import ArtisanProfile from '../models/ArtisanProfile.js';
+import { createError } from '../middleware/error.middleware.js';
+import { recalculateProductRating, recalculateArtisanRating } from '../utils/calculateRating.js';
 
-export const createReview = async (req, res, next) => {
-    try {
-        const { rating, comment, product } = req.body;
-        const existingReview = await Review.findOne({
-            user: req.user.id,
-            product: product
-        });
-        if (existingReview) {
-            return next(new AppError('You have already reviewed this product', 400));
-        }
-        const review = await Review.create({
-            rating,
-            comment,
-            product,
-            user: req.user.id
-        });
-        res.status(201).json({
-            status: 'success',
-            data: review
-        });
-    } catch (error) {
-        next(error);
+export async function createReview(req, res, next) {
+  try {
+    const { productId, orderId, rating, title, body, images, subRatings } = req.body;
+    const order = await Order.findOne({
+      _id: orderId,
+      customer: req.user.userId,
+      status: 'delivered',
+    });
+    if (!order) {
+      throw createError(400, 'You can only review products from delivered orders.');
     }
-};
-
-export const getProductReviews = async (req, res, next) => {
-    try {
-        const reviews = await Review.find({ product: req.params.productId })
-            .populate('user', 'name profileImage')
-            .sort('-createdAt');
-        res.status(200).json({
-            status: 'success',
-            results: reviews.length,
-            data: reviews
-        });
-    } catch (error) {
-        next(error);
+    const orderItem = order.items.find(i => i.product.toString() === productId);
+    if (!orderItem) {
+      throw createError(400, 'This product was not in the specified order.');
     }
-};
-
-export const updateReview = async (req, res, next) => {
-    try {
-        const review = await Review.findOneAndUpdate(
-            { _id: req.params.id, user: req.user.id },
-            { rating: req.body.rating, comment: req.body.comment },
-            { new: true, runValidators: true }
-        );
-        if (!review) {
-            return next(new AppError('Review not found or unauthorized', 404));
-        }
-        res.status(200).json({
-            status: 'success',
-            data: review
-        });
-    } catch (error) {
-        next(error);
+    const existingReview = await Review.findOne({
+      reviewer: req.user.userId,
+      product: productId,
+      order: orderId,
+    });
+    if (existingReview) {
+      throw createError(409, 'You have already reviewed this product for this order.');
     }
-};
-
-export const deleteReview = async (req, res, next) => {
-    try {
-        const review = await Review.findOneAndDelete({
-            _id: req.params.id,
-            user: req.user.id
-        });
-        if (!review) {
-            return next(new AppError('Review not found or unauthorized', 404));
-        }
-        res.status(200).json({
-            status: 'success',
-            message: 'Review deleted successfully'
-        });
-    } catch (error) {
-        next(error);
+    const review = await Review.create({
+      reviewer: req.user.userId,
+      product: productId,
+      artisan: orderItem.artisan,
+      order: orderId,
+      rating,
+      title,
+      body,
+      images: images || [],
+      subRatings,
+      isVerifiedPurchase: true,
+    });
+    await recalculateProductRating(Product, productId);
+    await recalculateArtisanRating(ArtisanProfile, orderItem.artisan);
+    return res.status(201).json({ message: 'Review submitted.', review });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function getProductReviews(req, res, next) {
+  try {
+    const { page = 1, limit = 10, sort = 'newest' } = req.query;
+    const sortMap = {
+      newest: { createdAt: -1 },
+      highest: { rating: -1 },
+      lowest: { rating: 1 },
+      helpful: { helpfulVotes: -1 },
+    };
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const filter = { product: req.params.productId, isVisible: true };
+    const [reviews, total] = await Promise.all([
+      Review.find(filter)
+        .sort(sortMap[sort] || sortMap.newest)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('reviewer', 'name avatar')
+        .lean(),
+      Review.countDocuments(filter),
+    ]);
+    return res.json({
+      reviews,
+      pagination: { total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function replyToReview(req, res, next) {
+  try {
+    const { content } = req.body;
+    const review = await Review.findById(req.params.id);
+    if (!review) throw createError(404, 'Review not found.');
+    if (review.artisanReply?.content) {
+      throw createError(409, 'You have already replied to this review.');
     }
-};
-
-export const getMyReviews = async (req, res, next) => {
-    try {
-        const reviews = await Review.find({ user: req.user.id })
-            .populate('product', 'title mainImage');
-        res.status(200).json({
-            status: 'success',
-            results: reviews.length,
-            data: reviews
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+    review.artisanReply = { content, repliedAt: new Date() };
+    await review.save();
+    return res.json({ message: 'Reply posted.', review });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function deleteReview(req, res, next) {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) throw createError(404, 'Review not found.');
+    review.isVisible = false;
+    await review.save();
+    await recalculateProductRating(Product, review.product);
+    await recalculateArtisanRating(ArtisanProfile, review.artisan);
+    return res.json({ message: 'Review hidden.' });
+  } catch (err) {
+    next(err);
+  }
+}

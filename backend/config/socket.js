@@ -19,7 +19,7 @@ export function initSocket(io) {
     io.on('connection', (socket) => {
         if (socket.user?.userId) {
             socket.join(`user:${socket.user.userId}`);
-            console.log(`🔌 User ${socket.user.userId} connected to socket`);
+            console.log(`User ${socket.user.userId} connected to socket`);
         }
         socket.on('join:customization', (requestId) => {
             socket.join(`customization:${requestId}`);
