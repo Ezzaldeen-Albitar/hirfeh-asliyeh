@@ -1,27 +1,34 @@
-<<<<<<< Updated upstream
-=======
 import jwt from 'jsonwebtoken';
-export function verifyToken(req, res, next) {
-  const token = req.cookies.token;
-  if (!token) {
-    return res.status(401).json({ message: 'Not authenticated. Please log in.' });
-  }
+import User from '../models/User.js';
+
+export async function verifyToken(req, res, next) {
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const token = req.cookies.token;
+
+    if (!token) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: 'User not found or inactive' });
+    }
+
+    req.user = user;
+
     next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Invalid or expired token. Please log in again.' });
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 }
+
 export const requireRole = (...roles) => (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
   if (!roles.includes(req.user.role)) {
-    return res.status(403).json({
-      message: `Forbidden. Required role(s): ${roles.join(', ')}`,
-    });
+    return res.status(403).json({ message: 'Forbidden' });
   }
   next();
 };
->>>>>>> Stashed changes
+

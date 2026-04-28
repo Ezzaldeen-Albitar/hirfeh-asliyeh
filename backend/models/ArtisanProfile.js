@@ -85,7 +85,7 @@ const artisanProfileSchema = new Schema(
             "Ajloun",
             "Ma'an",
             "Tafila",
-            "Mafraq"
+            "  "
         ]
     },
     specialties: [String],

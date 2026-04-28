@@ -1,18 +1,17 @@
 {
-  "name": "hirfeh-asliyeh",
+  "name": "w08d04",
   "version": "1.0.0",
-  "description": "Hirfeh Asliyeh Heritage Marketplace - Express.js Backend",
+  "description": "",
   "main": "server.js",
-  "type": "module",
+
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "seed": "node scripts/seed.js"
+    "dev": "nodemon server.js"
   },
-<<<<<<< Updated upstream
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
@@ -20,12 +19,12 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^4.18.2",
+    "express": "^4.22.1",
     "express-rate-limit": "^8.4.1",
     "express-validator": "^7.3.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^7.4.1",
+    "mongoose": "^7.8.9",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.7",
@@ -34,29 +33,6 @@
     "stripe": "^22.1.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
-=======
-  "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^8.0.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "cookie-parser": "^1.4.6",
-    "nodemailer": "^6.9.7",
-    "socket.io": "^4.6.2",
-    "cloudinary": "^1.41.3",
-    "multer": "^1.4.5-lts.1",
-    "multer-storage-cloudinary": "^4.0.0",
-    "stripe": "^14.5.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express-validator": "^7.0.1",
-    "morgan": "^1.10.0",
-    "helmet": "^7.1.0",
-    "express-rate-limit": "^7.1.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
->>>>>>> Stashed changes
+    "nodemon": "^3.1.14"
   }
 }

@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import crypto from 'crypto';
 export const OTP_LENGTH = 6;
 export const OTP_EXPIRE_MINUTES = 10;
@@ -51,4 +49,4 @@ export function buildOTPDoc(plainOtp) {
         lastSentAt: new Date(),
     };
 }
->>>>>>> Stashed changes
+
