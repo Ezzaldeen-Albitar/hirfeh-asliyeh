@@ -1,126 +1,226 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
-import { AppError } from '../utils/AppError.js';
+import ArtisanProfile from '../models/ArtisanProfile.js';
+import User from '../models/User.js';
+import { createError } from '../middleware/error.middleware.js';
+import { createAndEmitNotification } from '../services/notification.service.js';
+import { sendOrderConfirmationEmail } from '../services/mailer.service.js';
 
-export const createOrder = async (req, res, next) => {
-    try {
-        const { items, shippingAddress } = req.body;
-        let totalAmount = 0;
-        const orderItems = [];
-        for (const item of items) {
-            const product = await Product.findById(item.product);
-            if (!product) return next(new AppError(`Product ${item.product} not found`, 404));
-            if (product.stock < item.quantity) {
-                return next(new AppError(`Insufficient stock for ${product.title}`, 400));
-            }
-            totalAmount += product.price * item.quantity;
-            orderItems.push({
-                product: product._id,
-                title: product.title,
-                price: product.price,
-                quantity: item.quantity,
-                artisan: product.artisan
-            });
-            product.stock -= item.quantity;
-            await product.save();
-        }
-        const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const order = await Order.create({
-            orderNumber,
-            customer: req.user.id,
-            items: orderItems,
-            totalAmount,
-            shippingAddress,
-            status: 'pending',
-            statusHistory: [{ status: 'pending', message: 'Order placed successfully' }]
-        });
-        res.status(201).json({
-            status: 'success',
-            data: order
-        });
-    } catch (error) {
-        next(error);
+export async function createOrder(req, res, next) {
+  try {
+    const { items, shippingAddress, paymentMethod, notes, isGift, giftMessage } = req.body;
+    if (!items || items.length === 0) {
+      throw createError(400, 'Order must have at least one item.');
     }
-};
-
-export const getMyOrders = async (req, res, next) => {
-    try {
-        let filter = {};
-        if (req.user.role === 'customer') filter = { customer: req.user.id };
-        if (req.user.role === 'artisan') filter = { 'items.artisan': req.user.id };
-        if (req.user.role === 'admin') filter = {};
-        const orders = await Order.find(filter)
-            .sort('-createdAt')
-            .populate('customer', 'name email');
-        res.status(200).json({
-            status: 'success',
-            results: orders.length,
-            data: orders
-        });
-    } catch (error) {
-        next(error);
+    const orderItems = [];
+    let subtotal = 0;
+    for (const item of items) {
+      const product = await Product.findOne({ _id: item.productId, isActive: true })
+        .populate('artisan');
+      if (!product) {
+        throw createError(400, `Product not found: ${item.productId}`);
+      }
+      if (product.productType === 'ready-made' && product.stock < item.quantity) {
+        throw createError(400, `Insufficient stock for "${product.title}". Available: ${product.stock}`);
+      }
+      orderItems.push({
+        product: product._id,
+        artisan: product.artisan._id,
+        title: product.title,
+        price: product.price,
+        quantity: item.quantity,
+        image: product.images[product.thumbnailIndex || 0],
+        customizationRequest: item.customizationRequestId || undefined,
+      });
+      subtotal += product.price * item.quantity;
     }
-};
-
-export const getOrderById = async (req, res, next) => {
-    try {
-        const order = await Order.findById(req.params.id)
-            .populate('customer', 'name email')
-            .populate('items.product');
-        if (!order) return next(new AppError('Order not found', 404));
-        const isOwner = order.customer.id === req.user.id ||
-            order.items.some(item => item.artisan.toString() === req.user.id) ||
-            req.user.role === 'admin';
-        if (!isOwner) return next(new AppError('Not authorized to view this order', 403));
-        res.status(200).json({
-            status: 'success',
-            data: order
-        });
-    } catch (error) {
-        next(error);
+    const totalAmount = subtotal;
+    const order = await Order.create({
+      customer: req.user.userId,
+      items: orderItems,
+      subtotal,
+      totalAmount,
+      shippingAddress,
+      paymentMethod,
+      notes,
+      isGift: isGift || false,
+      giftMessage,
+      status: 'pending',
+      paymentStatus: paymentMethod === 'stripe' ? 'pending' : 'pending',
+    });
+    if (paymentMethod === 'cash_on_delivery') {
+      await confirmOrder(order._id, req.app.get('io'));
     }
-};
-
-export const updateOrderStatus = async (req, res, next) => {
-    try {
-        const { status, message } = req.body;
-        const order = await Order.findById(req.params.id);
-        if (!order) return next(new AppError('Order not found', 404));
-        order.status = status;
-        order.statusHistory.push({ status, message, timestamp: Date.now() });
-        await order.save();
-        res.status(200).json({
-            status: 'success',
-            data: order
-        });
-    } catch (error) {
-        next(error);
+    return res.status(201).json({ message: 'Order placed successfully.', order });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function confirmOrder(orderId, io) {
+  const order = await Order.findById(orderId).populate('customer', 'name email');
+  if (!order) return;
+  order.status = 'confirmed';
+  if (order.paymentMethod === 'cash_on_delivery') {
+    order.paymentStatus = 'pending';
+  }
+  await order.save();
+  for (const item of order.items) {
+    await Product.findOneAndUpdate(
+      { _id: item.product, productType: 'ready-made' },
+      {
+        $inc: { stock: -item.quantity, salesCount: item.quantity },
+      }
+    );
+    await ArtisanProfile.findByIdAndUpdate(item.artisan, {
+      $inc: { totalSales: item.quantity },
+    });
+  }
+  await createAndEmitNotification(
+    order.customer._id,
+    {
+      type: 'order_update',
+      title: 'تم تأكيد طلبك',
+      body: `طلبك #${order.orderNumber} قيد التجهيز الآن.`,
+      link: `/dashboard/orders/${order._id}`,
+      data: { orderId: order._id },
+    },
+    io
+  );
+  const artisanIds = [...new Set(order.items.map(i => i.artisan.toString()))];
+  for (const artisanId of artisanIds) {
+    const artisan = await ArtisanProfile.findById(artisanId);
+    if (artisan) {
+      await createAndEmitNotification(
+        artisan.user,
+        {
+          type: 'order_update',
+          title: 'طلب جديد!',
+          body: `لديك طلب جديد #${order.orderNumber}.`,
+          link: `/dashboard/artisan/orders`,
+          data: { orderId: order._id },
+        },
+        io
+      );
     }
-};
-
-export const cancelOrder = async (req, res, next) => {
-    try {
-        const order = await Order.findOne({
-            _id: req.params.id,
-            customer: req.user.id,
-            status: 'pending'
-        });
-        if (!order) {
-            return next(new AppError('Order cannot be cancelled (Not found or already processing)', 400));
-        }
-        for (const item of order.items) {
-            await Product.findByIdAndUpdate(item.product, {
-                $inc: { stock: item.quantity }
-            });
-        }
-        order.status = 'cancelled';
-        order.statusHistory.push({ status: 'cancelled', message: 'Cancelled by customer', timestamp: Date.now() });
-        await order.save();
-        res.status(200).json({
-            status: 'success',
-            message: 'Order cancelled and stock restored'
-        });
-    } catch (error) {
-        next(error);
+  }
+  try {
+    await sendOrderConfirmationEmail(
+      order.customer.email,
+      order.customer.name,
+      order.orderNumber,
+      order.totalAmount
+    );
+  } catch (e) {
+    console.error('Order email failed:', e.message);
+  }
+}
+export async function getOrders(req, res, next) {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const filter = {};
+    if (req.user.role === 'customer') {
+      filter.customer = req.user.userId;
+    } else if (req.user.role === 'artisan') {
+      const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
+      if (!artisan) return res.json({ orders: [], pagination: {} });
+      filter['items.artisan'] = artisan._id;
     }
+    if (status) filter.status = status;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('customer', 'name email avatar')
+        .lean(),
+      Order.countDocuments(filter),
+    ]);
+    return res.json({
+      orders,
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / parseInt(limit)) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function getOrder(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('customer', 'name email avatar phone')
+      .populate('items.product', 'title images category')
+      .populate('items.artisan', 'craftName profileImage user');
+    if (!order) throw createError(404, 'Order not found.');
+    const isOwner = order.customer._id.toString() === req.user.userId;
+    const isArtisan = order.items.some(i => {
+      return i.artisan?.user?.toString() === req.user.userId;
+    });
+    if (req.user.role !== 'admin' && !isOwner && !isArtisan) {
+      throw createError(403, 'Forbidden.');
+    }
+    return res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+}
+const VALID_STATUS_TRANSITIONS = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['in-progress', 'cancelled'],
+  'in-progress': ['shipped', 'cancelled'],
+  shipped: ['delivered'],
+  delivered: [],
+  cancelled: [],
 };
+export async function updateOrderStatus(req, res, next) {
+  try {
+    const { status, note, trackingNumber, estimatedDelivery } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) throw createError(404, 'Order not found.');
+    const validTransitions = VALID_STATUS_TRANSITIONS[order.status] || [];
+    if (!validTransitions.includes(status)) {
+      throw createError(400, `Cannot transition from "${order.status}" to "${status}".`);
+    }
+    order.status = status;
+    if (trackingNumber) order.trackingNumber = trackingNumber;
+    if (estimatedDelivery) order.estimatedDelivery = estimatedDelivery;
+    order.statusHistory.push({ status, note, changedBy: req.user.userId });
+    await order.save();
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      order.customer,
+      {
+        type: 'order_update',
+        title: `تحديث الطلب #${order.orderNumber}`,
+        body: `تم تحديث حالة طلبك إلى: ${status}`,
+        link: `/dashboard/orders/${order._id}`,
+        data: { orderId: order._id, status },
+      },
+      io
+    );
+    io?.to(`order:${order._id}`).emit('order:status_updated', {
+      orderId: order._id,
+      status,
+    });
+    return res.json({ message: 'Order status updated.', order });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function cancelOrder(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw createError(404, 'Order not found.');
+    if (!order.customer.equals(req.user.userId)) {
+      throw createError(403, 'You can only cancel your own orders.');
+    }
+    if (order.status !== 'pending') {
+      throw createError(400, 'Only pending orders can be cancelled by the customer.');
+    }
+    order.status = 'cancelled';
+    order.statusHistory.push({ status: 'cancelled', note: 'Cancelled by customer', changedBy: req.user.userId });
+    await order.save();
+    return res.json({ message: 'Order cancelled.', order });
+  } catch (err) {
+    next(err);
+  }
+}

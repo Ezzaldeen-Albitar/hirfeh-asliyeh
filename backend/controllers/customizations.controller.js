@@ -1,146 +1,213 @@
-import Customization from '../models/Customization.js';
+import CustomizationRequest from '../models/CustomizationRequest.js';
+import ArtisanProfile from '../models/ArtisanProfile.js';
+import Product from '../models/Product.js';
 import Order from '../models/Order.js';
-import { AppError } from '../utils/AppError.js';
-
-export const createCustomizationRequest = async (req, res, next) => {
-    try {
-        const newRequest = await Customization.create({
-            customer: req.user.id,
-            artisan: req.body.artisan,
-            product: req.body.product,
-            description: req.body.description,
-            attachments: req.body.attachments,
-            status: 'pending'
-        });
-        res.status(201).json({
-            status: 'success',
-            data: newRequest
-        });
-    } catch (error) {
-        next(error);
+import { createError } from '../middleware/error.middleware.js';
+import { createAndEmitNotification } from '../services/notification.service.js';
+export async function createRequest(req, res, next) {
+  try {
+    const { productId, requestedOptions, customerNotes, referenceImages } = req.body;
+    const product = await Product.findOne({ _id: productId, isActive: true, allowsCustomization: true });
+    if (!product) throw createError(404, 'Product not found or does not allow customization.');
+    const request = await CustomizationRequest.create({
+      product: productId,
+      artisan: product.artisan,
+      customer: req.user.userId,
+      requestedOptions,
+      customerNotes,
+      referenceImages: referenceImages || [],
+      basePrice: product.price,
+    });
+    const io = req.app.get('io');
+    const artisan = await ArtisanProfile.findById(product.artisan);
+    if (artisan) {
+      await createAndEmitNotification(
+        artisan.user,
+        {
+          type: 'customization',
+          title: 'طلب تخصيص جديد',
+          body: `طلب تخصيص على منتج: ${product.title}`,
+          link: `/dashboard/artisan/customizations`,
+          data: { requestId: request._id },
+        },
+        io
+      );
     }
-};
-
-export const getCustomizations = async (req, res, next) => {
-    try {
-        const filter = req.user.role === 'artisan'
-            ? { artisan: req.user.id }
-            : { customer: req.user.id };
-        const requests = await Customization.find(filter)
-            .populate('customer', 'name profileImage')
-            .populate('artisan', 'name profileImage')
-            .populate('product', 'title price');
-        res.status(200).json({
-            status: 'success',
-            results: requests.length,
-            data: requests
-        });
-    } catch (error) {
-        next(error);
+    return res.status(201).json({ message: 'Customization request submitted.', request });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function getRequests(req, res, next) {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const filter = {};
+    if (req.user.role === 'customer') {
+      filter.customer = req.user.userId;
+    } else if (req.user.role === 'artisan') {
+      const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
+      if (!artisan) return res.json({ requests: [] });
+      filter.artisan = artisan._id;
     }
-};
-
-export const getCustomizationById = async (req, res, next) => {
-    try {
-        const request = await Customization.findById(req.params.id)
-            .populate('customer', 'name email')
-            .populate('artisan', 'name email')
-            .populate('messages.sender', 'name profileImage');
-        if (!request) return next(new AppError('Request not found', 404));
-        res.status(200).json({
-            status: 'success',
-            data: request
-        });
-    } catch (error) {
-        next(error);
+    if (status) filter.status = status;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const requests = await CustomizationRequest.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('product', 'title images')
+      .populate('customer', 'name avatar')
+      .lean();
+    return res.json({ requests });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function getRequest(req, res, next) {
+  try {
+    const request = await CustomizationRequest.findById(req.params.id)
+      .populate('product', 'title images price')
+      .populate('customer', 'name avatar email')
+      .populate({ path: 'artisan', populate: { path: 'user', select: 'name avatar' } })
+      .populate('messages.sender', 'name avatar role');
+    if (!request) throw createError(404, 'Request not found.');
+    const isCustomer = request.customer._id.toString() === req.user.userId;
+    const isArtisan = request.artisan?.user?._id?.toString() === req.user.userId;
+    if (req.user.role !== 'admin' && !isCustomer && !isArtisan) {
+      throw createError(403, 'Forbidden.');
     }
-};
-
-export const sendQuote = async (req, res, next) => {
-    try {
-        const { price, estimatedDays } = req.body;
-        const request = await Customization.findOneAndUpdate(
-            { _id: req.params.id, artisan: req.user.id },
-            {
-                artisanQuote: price,
-                estimatedDays,
-                status: 'quoted'
-            },
-            { new: true, runValidators: true }
-        );
-        if (!request) return next(new AppError('Request not found or unauthorized', 404));
-        res.status(200).json({
-            status: 'success',
-            data: request
-        });
-    } catch (error) {
-        next(error);
+    return res.json({ request });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function sendQuote(req, res, next) {
+  try {
+    const { price, leadTimeDays, message } = req.body;
+    const request = await CustomizationRequest.findById(req.params.id);
+    if (!request) throw createError(404, 'Request not found.');
+    if (!request.canTransitionTo('quoted')) {
+      throw createError(400, `Cannot quote from status: ${request.status}`);
     }
-};
-
-export const acceptQuote = async (req, res, next) => {
-    try {
-        const request = await Customization.findOne({
-            _id: req.params.id,
-            customer: req.user.id,
-            status: 'quoted'
-        });
-        if (!request) return next(new AppError('No quoted request found', 404));
-        request.status = 'accepted';
-        await request.save();
-        const newOrder = await Order.create({
-            customer: request.customer,
-            artisan: request.artisan,
-            items: [{
-                product: request.product,
-                price: request.artisanQuote,
-                quantity: 1,
-                isCustom: true
-            }],
-            totalPrice: request.artisanQuote,
-            customizationRef: request._id
-        });
-        res.status(201).json({
-            status: 'success',
-            order: newOrder
-        });
-    } catch (error) {
-        next(error);
+    request.artisanQuote = { price: parseFloat(price), leadTimeDays: parseInt(leadTimeDays), message, sentAt: new Date() };
+    request.totalPrice = parseFloat(price);
+    request.status = 'quoted';
+    await request.save();
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      request.customer,
+      {
+        type: 'customization',
+        title: 'تم إرسال عرض سعر',
+        body: `الحرفي أرسل عرض سعر: ${price} دينار`,
+        link: `/dashboard/customizations/${request._id}`,
+        data: { requestId: request._id },
+      },
+      io
+    );
+    io?.to(`customization:${request._id}`).emit('customization:quoted', {
+      requestId: request._id,
+      quote: request.artisanQuote,
+    });
+    return res.json({ message: 'Quote sent.', request });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function acceptQuote(req, res, next) {
+  try {
+    const request = await CustomizationRequest.findById(req.params.id)
+      .populate('product')
+      .populate('artisan');
+    if (!request) throw createError(404, 'Request not found.');
+    if (!request.customer.equals(req.user.userId)) throw createError(403, 'Forbidden.');
+    if (!request.canTransitionTo('accepted')) {
+      throw createError(400, 'Quote cannot be accepted at this stage.');
     }
-};
-
-export const addMessage = async (req, res, next) => {
-    try {
-        const { text } = req.body;
-        const request = await Customization.findById(req.params.id);
-        if (!request) return next(new AppError('Request not found', 404));
-        request.messages.push({
-            sender: req.user.id,
-            text
-        });
-        await request.save();
-        res.status(200).json({
-            status: 'success',
-            data: request.messages
-        });
-    } catch (error) {
-        next(error);
+    request.status = 'accepted';
+    await request.save();
+    const order = await Order.create({
+      customer: req.user.userId,
+      items: [{
+        product: request.product._id,
+        artisan: request.artisan._id,
+        title: request.product.title,
+        price: request.artisanQuote.price,
+        quantity: request.requestedOptions?.quantity || 1,
+        image: request.product.images[0],
+        customizationRequest: request._id,
+      }],
+      subtotal: request.artisanQuote.price,
+      totalAmount: request.artisanQuote.price,
+      shippingAddress: req.body.shippingAddress || {
+        recipientName: 'To be confirmed',
+        phone: 'To be confirmed',
+        city: 'Amman',
+        governorate: 'عمّان',
+      },
+      paymentMethod: req.body.paymentMethod || 'cash_on_delivery',
+    });
+    request.convertedToOrder = order._id;
+    request.status = 'in-progress';
+    await request.save();
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      request.artisan.user,
+      {
+        type: 'customization',
+        title: 'قبِل العميل العرض!',
+        body: 'قبل العميل عرض السعر. تم إنشاء الطلب.',
+        link: `/dashboard/artisan/orders`,
+        data: { orderId: order._id },
+      },
+      io
+    );
+    return res.json({ message: 'Quote accepted. Order created.', order, request });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function sendMessage(req, res, next) {
+  try {
+    const { content } = req.body;
+    const request = await CustomizationRequest.findById(req.params.id)
+      .populate('customer artisan');
+    if (!request) throw createError(404, 'Request not found.');
+    const isCustomer = request.customer._id.toString() === req.user.userId;
+    const isArtisan = request.artisan?.user?.toString() === req.user.userId;
+    if (!isCustomer && !isArtisan && req.user.role !== 'admin') {
+      throw createError(403, 'Forbidden.');
     }
-};
-
-export const completeCustomization = async (req, res, next) => {
-    try {
-        const request = await Customization.findOneAndUpdate(
-            { _id: req.params.id, artisan: req.user.id },
-            { status: 'completed' },
-            { new: true }
-        );
-        if (!request) return next(new AppError('Request not found or unauthorized', 404));
-        res.status(200).json({
-            status: 'success',
-            data: request
-        });
-    } catch (error) {
-        next(error);
+    const message = {
+      sender: req.user.userId,
+      content,
+      sentAt: new Date(),
+      isRead: false,
+    };
+    request.messages.push(message);
+    await request.save();
+    const savedMsg = request.messages[request.messages.length - 1];
+    const io = req.app.get('io');
+    io?.to(`customization:${request._id}`).emit('receive:message', {
+      ...savedMsg.toObject(),
+      customizationId: request._id,
+    });
+    return res.status(201).json({ message: 'Message sent.', chatMessage: savedMsg });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function completeRequest(req, res, next) {
+  try {
+    const request = await CustomizationRequest.findById(req.params.id);
+    if (!request) throw createError(404, 'Request not found.');
+    if (!request.canTransitionTo('completed')) {
+      throw createError(400, 'Cannot complete at this stage.');
     }
-};
+    request.status = 'completed';
+    await request.save();
+    return res.json({ message: 'Request marked as completed.', request });
+  } catch (err) {
+    next(err);
+  }
+}

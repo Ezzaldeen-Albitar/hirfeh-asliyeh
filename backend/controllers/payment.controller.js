@@ -1,79 +1,106 @@
-import stripePackage from 'stripe';
+import Stripe from 'stripe';
 import Order from '../models/Order.js';
-import { AppError } from '../utils/AppError.js';
+import { createError } from '../middleware/error.middleware.js';
+import { confirmOrder } from './orders.controller.js';
 
-const stripe = stripePackage(process.env.STRIPE_SECRET_KEY);
-
-export const createPaymentIntent = async (req, res, next) => {
-    try {
-        const { orderId } = req.body;
-        const order = await Order.findById(orderId);
-        if (!order) return next(new AppError('Order not found', 404));
-        if (order.customer.toString() !== req.user.id) {
-            return next(new AppError('Unauthorized access to this order', 403));
-        }
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(order.totalAmount * 100),
-            currency: 'usd',
-            metadata: { orderId: order._id.toString() },
-            automatic_payment_methods: { enabled: true },
-        });
-        res.status(200).json({
-            status: 'success',
-            clientSecret: paymentIntent.client_secret
-        });
-    } catch (error) {
-        next(error);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not set.");
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
+export async function createPaymentIntent(req, res, next) {
+  try {
+    const { orderId } = req.body;
+    const order = await Order.findOne({ _id: orderId, customer: req.user.userId });
+    if (!order) throw createError(404, 'Order not found.');
+    if (order.paymentStatus === 'paid') {
+      throw createError(400, 'Order is already paid.');
     }
-};
-
-export const confirmPayment = async (req, res, next) => {
-    try {
-        const { paymentIntentId, orderId } = req.body;
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-        if (paymentIntent.status === 'succeeded') {
-            const order = await Order.findByIdAndUpdate(
-                orderId,
-                {
-                    isPaid: true,
-                    paidAt: Date.now(),
-                    paymentStatus: 'completed',
-                    $push: { statusHistory: { status: 'paid', message: 'Payment successful via Stripe' } }
-                },
-                { new: true }
-            );
-            res.status(200).json({
-                status: 'success',
-                data: order
+    const amountInCents = Math.round(order.totalAmount * 100);
+    const paymentIntent = await getStripe().paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      metadata: {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        customerId: req.user.userId,
+      },
+    });
+    await Order.findByIdAndUpdate(orderId, {
+      paymentIntentId: paymentIntent.id,
+    });
+    return res.json({
+      clientSecret: paymentIntent.client_secret,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function stripeWebhook(req, res) {
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = getStripe().webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Stripe webhook signature verification failed:', err.message);
+    return res.status(400).json({ message: `Webhook error: ${err.message}` });
+  }
+  const io = req.app.get('io');
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      const paymentIntent = event.data.object;
+      const { orderId } = paymentIntent.metadata;
+      if (orderId) {
+        try {
+          await Order.findByIdAndUpdate(orderId, {
+            paymentStatus: 'paid',
+            paymentIntentId: paymentIntent.id,
+          });
+          await confirmOrder(orderId, io);
+          console.log(`Payment succeeded for order ${orderId}`);
+        } catch (err) {
+          console.error('Error processing successful payment:', err);
+        }
+      }
+      break;
+    }
+    case 'payment_intent.payment_failed': {
+      const paymentIntent = event.data.object;
+      const { orderId } = paymentIntent.metadata;
+      if (orderId) {
+        try {
+          await Order.findByIdAndUpdate(orderId, { status: 'cancelled' });
+          const order = await Order.findById(orderId);
+          if (order && io) {
+            io.to(`user:${order.customer}`).emit('notification:new', {
+              type: 'order_update',
+              title: ' فشل الدفع',
+              body: `فشل دفع الطلب #${order.orderNumber}. يرجى المحاولة مرة أخرى.`,
+              link: `/dashboard/orders/${orderId}`,
             });
-        } else {
-            return next(new AppError('Payment not successful', 400));
+          }
+          console.log(`Payment failed for order ${orderId}`);
+        } catch (err) {
+          console.error('Error handling failed payment:', err);
         }
-    } catch (error) {
-        next(error);
+      }
+      break;
     }
-};
-
-export const stripeWebhook = async (req, res, next) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-        event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            process.env.STRIPE_WEBHOOK_SECRET
-        );
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+    case 'payment_intent.canceled': {
+      const paymentIntent = event.data.object;
+      const { orderId } = paymentIntent.metadata;
+      if (orderId) {
+        await Order.findByIdAndUpdate(orderId, { status: 'cancelled' });
+      }
+      break;
     }
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
-        const orderId = paymentIntent.metadata.orderId;
-        await Order.findByIdAndUpdate(orderId, {
-            isPaid: true,
-            paidAt: Date.now(),
-            paymentStatus: 'completed'
-        });
-    }
-    res.status(200).json({ received: true });
-};
+    default:
+      break;
+  }
+  res.json({ received: true });
+}
