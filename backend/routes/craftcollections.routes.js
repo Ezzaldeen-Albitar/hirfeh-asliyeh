@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.middleware.js';
-import * as collectionsController from '../controllers/craftCollections.controller.js';
+import * as collectionsController from '../controllers/craftcollections.controller.js';
 const router = Router();
 
 router.get('/', collectionsController.getCollections);

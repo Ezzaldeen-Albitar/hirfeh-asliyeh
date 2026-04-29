@@ -47,7 +47,7 @@ export async function getCollection(req, res, next) {
         }).populate('artisan', 'craftName region profileImage isVerified rating badges');
         if (!collection) throw createError(404, 'Collection not found.');
         const products = await Product.find({
-            collection: collection._id,
+            collectionId: collection._id,
             isActive: true,
         })
             .sort({ createdAt: -1 })
@@ -106,7 +106,7 @@ export async function deleteCollection(req, res, next) {
                 throw createError(403, 'You do not own this collection.');
             }
         }
-        await Product.updateMany({ collection: collection._id }, { $unset: { collection: '' } });
+        await Product.updateMany({ collectionId: collection._id }, { $unset: { collectionId: '' } });
         collection.isActive = false;
         await collection.save();
         return res.json({ message: 'Collection deleted.' });
@@ -133,15 +133,15 @@ export async function addProductToCollection(req, res, next) {
         });
         if (!product) throw createError(404, 'Product not found or not yours.');
 
-        if (product.collection && product.collection.equals(collection._id)) {
+        if (product.collectionId && product.collectionId.equals(collection._id)) {
             throw createError(409, 'Product is already in this collection.');
         }
-        if (product.collection) {
-            await CraftCollection.findByIdAndUpdate(product.collection, {
+        if (product.collectionId) {
+            await CraftCollection.findByIdAndUpdate(product.collectionId, {
                 $inc: { productCount: -1 },
             });
         }
-        product.collection = collection._id;
+        product.collectionId = collection._id;
         await product.save();
         await CraftCollection.findByIdAndUpdate(collection._id, {
             $inc: { productCount: 1 },
@@ -166,10 +166,10 @@ export async function removeProductFromCollection(req, res, next) {
         const product = await Product.findOne({
             _id: req.params.productId,
             artisan: artisanProfile._id,
-            collection: collection._id,
+            collectionId: collection._id,
         });
         if (!product) throw createError(404, 'Product not found in this collection.');
-        product.collection = undefined;
+        product.collectionId = undefined;
         await product.save();
         await CraftCollection.findByIdAndUpdate(collection._id, {
             $inc: { productCount: -1 },

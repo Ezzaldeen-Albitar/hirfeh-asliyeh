@@ -24,7 +24,7 @@ export async function getProducts(req, res, next) {
     if (category) filter.category = category;
     if (type) filter.productType = type;
     if (artisan) filter.artisan = artisan;
-    if (collection) filter.collection = collection;
+    if (collection) filter.collectionId = collection;
     if (featured === 'true') filter.isFeatured = true;
     if (minPrice || maxPrice) {
       filter.price = {};
@@ -58,7 +58,7 @@ export async function getProducts(req, res, next) {
         .limit(parseInt(limit))
         .populate('artisan', 'craftName region profileImage isVerified rating badges')
         .populate('originStory', 'certificateNumber origin.region')
-        .populate('collection', 'name nameAr')
+        .populate('collectionId', 'name nameAr')
         .lean(),
       Product.countDocuments(filter),
     ]);
@@ -85,7 +85,7 @@ export async function getProduct(req, res, next) {
         populate: { path: 'badges', select: 'nameAr nameEn icon' },
       })
       .populate('originStory')
-      .populate('collection', 'name nameAr description coverImage');
+      .populate('collectionId', 'name nameAr description coverImage');
     if (!product) throw createError(404, 'Product not found.');
     Product.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }).exec();
     return res.json({ product });
@@ -121,7 +121,7 @@ export async function createProduct(req, res, next) {
       customizationOptions,
       materials: Array.isArray(materials) ? materials : (materials ? [materials] : []),
       dimensions, weight,
-      ...(collection ? { collection } : {}),
+      ...(collection ? { collectionId: collection } : {}),
     };
     if (productType === 'ready-made') productData.stock = parseInt(stock) || 1;
     if (productType === 'made-to-order') productData.leadTimeDays = parseInt(leadTimeDays);
