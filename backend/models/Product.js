@@ -89,7 +89,7 @@ const productSchema = new Schema(
 productSchema.index({ title: 'text', description: 'text', tags: 'text', searchKeywords: 'text' });
 productSchema.index({ category: 1, price: 1 });
 productSchema.index({ artisan: 1, isActive: 1 });
-productSchema.index({ collection: 1, isActive: 1 });
+productSchema.index({ collectionId: 1, isActive: 1 });
 productSchema.index({ isFeatured: 1 });
 productSchema.index({ rating: -1 });
 productSchema.index({ createdAt: -1 });
