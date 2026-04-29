@@ -23,7 +23,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
-import craftCollectionRoutes from './routes/craftCollections.routes.js';
+import craftCollectionRoutes from './routes/craftcollections.routes.js';
 
 await connectDB();
 const app = express();
