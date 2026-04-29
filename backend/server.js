@@ -23,6 +23,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
+import craftCollectionRoutes from './routes/craftCollections.routes.js';
 
 await connectDB();
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/collections', craftCollectionRoutes);
 
 
 app.use((req, res) => {

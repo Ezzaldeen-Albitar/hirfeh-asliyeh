@@ -7,6 +7,7 @@ const productSchema = new Schema(
       ref: 'ArtisanProfile',
       required: true,
     },
+    collectionId: { type: mongoose.Schema.Types.ObjectId, ref: "CraftCollection" },
     title: {
       type: String,
       required: [true, 'Title is required'],
@@ -88,6 +89,7 @@ const productSchema = new Schema(
 productSchema.index({ title: 'text', description: 'text', tags: 'text', searchKeywords: 'text' });
 productSchema.index({ category: 1, price: 1 });
 productSchema.index({ artisan: 1, isActive: 1 });
+productSchema.index({ collection: 1, isActive: 1 });
 productSchema.index({ isFeatured: 1 });
 productSchema.index({ rating: -1 });
 productSchema.index({ createdAt: -1 });
