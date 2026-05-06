@@ -3,7 +3,11 @@ import User from '../models/User.js';
 
 export async function verifyToken(req, res, next) {
   try {
-    const token = req.cookies.token;
+    // Support both cookie (SSR) and Authorization Bearer header (RTK Query)
+    let token = req.cookies?.token;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
     if (!token) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -21,6 +25,7 @@ export async function verifyToken(req, res, next) {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 }
+
 export const requireRole = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
     return res.status(403).json({ message: 'Forbidden' });

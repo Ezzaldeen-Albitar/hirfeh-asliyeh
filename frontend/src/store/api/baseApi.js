@@ -5,12 +5,13 @@ export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+    credentials: 'include', // send cookies automatically
     prepareHeaders: (headers) => {
       const token = Cookies.get('token');
       if (token) headers.set('Authorization', `Bearer ${token}`);
       return headers;
     },
   }),
-  tagTypes: ['Products', 'Artisans', 'Orders', 'Workshops', 'Reviews', 'Customizations', 'Users', 'Badges'],
+  tagTypes: ['Products','Artisans','Orders','Workshops','Reviews','Customizations','Users','Badges','Wishlist'],
   endpoints: () => ({}),
 });

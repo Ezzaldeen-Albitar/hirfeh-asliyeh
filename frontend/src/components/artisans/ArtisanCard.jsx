@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import StarRating from '@/components/common/StarRating';
 
 export default function ArtisanCard({ artisan }) {
@@ -6,20 +7,33 @@ export default function ArtisanCard({ artisan }) {
     <div className="ha-card overflow-hidden h-100">
       {/* Cover */}
       <div className="position-relative" style={{height:200}}>
-        <img
+        <Image
           src={artisan.coverImage || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75'}
-          alt={artisan.name} className="w-100 h-100" style={{objectFit:'cover'}}/>
+          alt={artisan.name || 'حرفي'}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          style={{objectFit:'cover'}}
+        />
         <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(44,37,32,.7) 0%,transparent 60%)'}}/>
         {artisan.isVerified && (
-          <span className="badge-certified position-absolute" style={{top:10,right:10}}>
+          <span className="badge-certified position-absolute" style={{top:10,right:10,zIndex:1}}>
             <i className="bi bi-patch-check-fill me-1"/>معتمد
           </span>
         )}
         {/* Avatar */}
-        <img
-          src={artisan.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&q=70'}
-          alt="" style={{width:60,height:60,borderRadius:'50%',objectFit:'cover',
-            border:'3px solid var(--gold)',position:'absolute',bottom:-24,right:20}}/>
+        <div style={{
+          width:60, height:60, borderRadius:'50%', overflow:'hidden',
+          border:'3px solid var(--gold)',
+          position:'absolute', bottom:-24, right:20, zIndex:1,
+        }}>
+          <Image
+            src={artisan.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&q=70'}
+            alt=""
+            fill
+            sizes="60px"
+            style={{objectFit:'cover'}}
+          />
+        </div>
       </div>
 
       <div className="p-3 pt-5">

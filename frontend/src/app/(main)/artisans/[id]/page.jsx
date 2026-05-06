@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useGetArtisanQuery } from '@/store/api/artisansApi';
@@ -8,21 +9,38 @@ import BadgeDisplay from '@/components/artisans/BadgeDisplay';
 import StarRating from '@/components/common/StarRating';
 import MapView from '@/components/common/MapView';
 
-const FALLBACK_ARTISAN = {
-  _id:'a1', name:'خليل الفاحوم', craftSpecialty:'صانع فخار وزجاج', bio:'حرفي أردني من مدينة عزرق، يعمل في صناعة الفخار منذ أكثر من 40 عاماً. تعلّم الحرفة من والده الذي تعلّمها بدوره من جده. يُعدّ من أمهر صنّاع الفخار في الأردن.', avgRating:5.0, governorate:'عزرق', isVerified:true, yearsExp:40, productsCount:51, reviewsCount:128, coverImage:'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=1200&q=80', avatar:'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&q=80', badges:[{type:'gold',name:'حرفي ذهبي'},{type:'master',name:'ماستر'}], origin:{ lat:31.82, lng:36.57 },
-};
-
 export default function ArtisanProfilePage() {
   const { id } = useParams();
-  const { data, isLoading } = useGetArtisanQuery(id);
-  const { data: productsData } = useGetProductsQuery({ artisan: id, limit: 8 });
+  const { data, isLoading, isError } = useGetArtisanQuery(id);
+  const { data: productsData, isLoading: loadingProducts } = useGetProductsQuery({ artisan: id, limit: 8 });
 
-  const artisan  = data?.data || FALLBACK_ARTISAN;
+  const artisan  = data?.data;
   const products = productsData?.data || [];
 
   if (isLoading) return (
-    <div className="d-flex justify-content-center align-items-center" style={{height:'60vh'}}>
-      <div className="spinner-border" style={{color:'var(--burgundy)'}}/>
+    <div className="bg-cream">
+      {/* Cover skeleton */}
+      <div className="placeholder-glow"><div className="placeholder w-100" style={{height:320,background:'var(--parchment)'}}/></div>
+      <div className="container" style={{marginTop:-60,position:'relative',zIndex:2,paddingBottom:60}}>
+        <div className="ha-card p-4 mb-4 placeholder-glow">
+          <div className="d-flex gap-4">
+            <div className="placeholder rounded-circle" style={{width:100,height:100,background:'var(--parchment)',flexShrink:0,marginTop:-40}}/>
+            <div className="flex-grow-1">
+              <span className="placeholder col-5 d-block mb-2" style={{height:28}}/>
+              <span className="placeholder col-3 d-block mb-2" style={{height:18}}/>
+              <span className="placeholder col-8 d-block" style={{height:14}}/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isError || !artisan) return (
+    <div className="text-center py-5" style={{color:'var(--warm-gray)'}}>
+      <i className="bi bi-person-x fs-1 d-block mb-3" style={{color:'var(--stone)'}}/>
+      <h5 style={{fontFamily:'Amiri,serif',color:'var(--charcoal)'}}>الحرفي غير موجود</h5>
+      <Link href="/artisans" className="btn btn-primary mt-3" style={{borderRadius:10}}>العودة للحرفيين</Link>
     </div>
   );
 
@@ -30,7 +48,7 @@ export default function ArtisanProfilePage() {
     <div className="bg-cream">
       {/* Cover */}
       <div style={{position:'relative',height:320,overflow:'hidden'}}>
-        <img src={artisan.coverImage} alt="cover" className="w-100 h-100" style={{objectFit:'cover'}}/>
+        <Image src={artisan.coverImage || artisan.avatar} alt="cover" className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>
         <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(44,37,32,.8) 0%,rgba(44,37,32,.2) 60%,transparent 100%)'}}/>
         {artisan.isVerified && (
           <div className="position-absolute" style={{top:20,right:20}}>
@@ -40,11 +58,10 @@ export default function ArtisanProfilePage() {
       </div>
 
       <div className="container" style={{marginTop:-60,paddingBottom:60,position:'relative',zIndex:2}}>
-        {/* Profile header card */}
+        {/* Profile card */}
         <div className="ha-card p-4 mb-4">
           <div className="d-flex flex-column flex-md-row gap-4 align-items-start align-items-md-center">
-            <img src={artisan.avatar} alt={artisan.name}
-              style={{width:100,height:100,borderRadius:'50%',objectFit:'cover',border:'4px solid var(--gold)',flexShrink:0,marginTop:-60}}/>
+            <Image src={artisan.avatar} alt={artisan.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>
             <div className="flex-grow-1">
               <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
@@ -54,7 +71,9 @@ export default function ArtisanProfilePage() {
                     <StarRating value={artisan.avgRating||0}/>
                     <small style={{color:'var(--warm-gray)'}}>({artisan.reviewsCount||0} تقييم)</small>
                     <span style={{color:'var(--stone)'}}>·</span>
-                    <small style={{color:'var(--warm-gray)'}}><i className="bi bi-geo-alt-fill text-danger" style={{fontSize:'0.72rem'}}/> {artisan.governorate}، الأردن</small>
+                    <small style={{color:'var(--warm-gray)'}}>
+                      <i className="bi bi-geo-alt-fill text-danger" style={{fontSize:'0.72rem'}}/> {artisan.governorate}، الأردن
+                    </small>
                   </div>
                 </div>
                 <Link href={`/customizations/new?artisan=${artisan._id}`}
@@ -71,16 +90,15 @@ export default function ArtisanProfilePage() {
         </div>
 
         <div className="row g-4">
-          {/* Left column */}
+          {/* Sidebar */}
           <div className="col-lg-4">
-            {/* Stats */}
             <div className="ha-card p-4 mb-4">
               <h6 style={{fontFamily:'Amiri,serif',fontSize:'1.1rem',marginBottom:16}}>إحصائيات</h6>
               {[
-                { icon:'bi-box-seam',   label:'المنتجات',    val: artisan.productsCount||0 },
-                { icon:'bi-star-fill',  label:'التقييم',     val: `${artisan.avgRating||0} / 5`, color:'var(--gold)' },
-                { icon:'bi-award',      label:'سنوات الخبرة',val: `${artisan.yearsExp||0} سنة` },
-                { icon:'bi-chat-text',  label:'التقييمات',   val: artisan.reviewsCount||0 },
+                {icon:'bi-box-seam',   label:'المنتجات',     val: artisan.productsCount||0},
+                {icon:'bi-star-fill',  label:'التقييم',      val: `${(artisan.avgRating||0).toFixed(1)} / 5`, color:'var(--gold)'},
+                {icon:'bi-award',      label:'سنوات الخبرة', val: `${artisan.yearsExp||0} سنة`},
+                {icon:'bi-chat-text',  label:'التقييمات',    val: artisan.reviewsCount||0},
               ].map(s=>(
                 <div key={s.label} className="d-flex align-items-center justify-content-between py-2"
                   style={{borderBottom:'1px solid var(--gold-pale)'}}>
@@ -92,29 +110,26 @@ export default function ArtisanProfilePage() {
                 </div>
               ))}
             </div>
-
-            {/* Location */}
-            <div className="ha-card p-4">
-              <h6 style={{fontFamily:'Amiri,serif',fontSize:'1.1rem',marginBottom:16}}>
-                <i className="bi bi-geo-alt text-burgundy me-2"/>الموقع
-              </h6>
-              <MapView lat={artisan.origin?.lat||31.95} lng={artisan.origin?.lng||35.93} label={artisan.governorate||'الأردن'}/>
-            </div>
+            {(artisan.origin?.lat || artisan.governorate) && (
+              <div className="ha-card p-4">
+                <h6 style={{fontFamily:'Amiri,serif',fontSize:'1.1rem',marginBottom:16}}>
+                  <i className="bi bi-geo-alt text-burgundy me-2"/>الموقع
+                </h6>
+                <MapView lat={artisan.origin?.lat||31.95} lng={artisan.origin?.lng||35.93} label={artisan.governorate||'الأردن'}/>
+              </div>
+            )}
           </div>
 
-          {/* Right column */}
+          {/* Main content */}
           <div className="col-lg-8">
-            {/* Bio */}
-            <div className="ha-card p-4 mb-4">
-              <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',marginBottom:14}}>
-                <i className="bi bi-person-lines-fill text-burgundy me-2"/>قصتي
-              </h5>
-              <p style={{color:'var(--warm-gray)',lineHeight:1.95,fontSize:'0.93rem',margin:0}}>
-                {artisan.bio || 'حرفي أردني موهوب يحمل إرثاً من الأجداد ويواصل مسيرة الإبداع.'}
-              </p>
-            </div>
-
-            {/* Products */}
+            {artisan.bio && (
+              <div className="ha-card p-4 mb-4">
+                <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',marginBottom:14}}>
+                  <i className="bi bi-person-lines-fill text-burgundy me-2"/>قصتي
+                </h5>
+                <p style={{color:'var(--warm-gray)',lineHeight:1.95,fontSize:'0.93rem',margin:0}}>{artisan.bio}</p>
+              </div>
+            )}
             <div className="ha-card p-4">
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',margin:0}}>
@@ -124,16 +139,25 @@ export default function ArtisanProfilePage() {
                   عرض الكل <i className="bi bi-arrow-left"/>
                 </Link>
               </div>
-              {products.length === 0 ? (
+              {loadingProducts ? (
+                <div className="row g-3">
+                  {[...Array(4)].map((_,i)=>(
+                    <div key={i} className="col-sm-6">
+                      <div className="ha-card overflow-hidden placeholder-glow">
+                        <div className="placeholder w-100" style={{height:180,background:'var(--parchment)'}}/>
+                        <div className="p-3"><span className="placeholder col-7 d-block" style={{height:14}}/></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : products.length === 0 ? (
                 <div className="text-center py-4" style={{color:'var(--warm-gray)'}}>
                   <i className="bi bi-inbox fs-2 d-block mb-2"/>لا توجد منتجات بعد
                 </div>
               ) : (
                 <div className="row g-3">
                   {products.slice(0,4).map(p=>(
-                    <div key={p._id} className="col-sm-6">
-                      <ProductCard product={p}/>
-                    </div>
+                    <div key={p._id} className="col-sm-6"><ProductCard product={p}/></div>
                   ))}
                 </div>
               )}

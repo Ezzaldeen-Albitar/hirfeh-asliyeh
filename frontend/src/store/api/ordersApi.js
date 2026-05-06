@@ -22,10 +22,14 @@ export const ordersApi = baseApi.injectEndpoints({
       query: (params) => ({ url: '/orders/artisan', params }),
       providesTags: ['Orders'],
     }),
+    cancelOrder: builder.mutation({
+      query: (id) => ({ url: `/orders/${id}/cancel`, method: 'PATCH' }),
+      invalidatesTags: ['Orders'],
+    }),
   }),
 });
 
 export const {
   useGetOrdersQuery, useGetOrderQuery, useCreateOrderMutation,
-  useUpdateOrderStatusMutation, useGetArtisanOrdersQuery,
+  useUpdateOrderStatusMutation, useGetArtisanOrdersQuery, useCancelOrderMutation,
 } = ordersApi;

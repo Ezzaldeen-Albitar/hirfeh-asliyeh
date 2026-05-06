@@ -19,8 +19,10 @@ const userSchema = new Schema(
     },
     password: {
       type: String,
-      minlength: [8, 'Password must be at least 8 characters'],
       select: false,
+      // ⚠️ NO minlength here — validation happens in the route (express-validator)
+      // minlength would run AFTER bcrypt hash (60+ chars) and always pass, or
+      // on the plain text before pre-save hook, causing false rejections.
     },
     googleId: {
       type: String,

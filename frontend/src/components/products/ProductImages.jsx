@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function ProductImages({ images = [] }) {
   const [active, setActive] = useState(0);
@@ -8,16 +9,33 @@ export default function ProductImages({ images = [] }) {
   return (
     <div>
       {/* Main */}
-      <div className="img-gallery-main mb-3" style={{height:380}}>
-        <img src={imgs[active]} alt="main"
-          className="w-100 h-100" style={{objectFit:'cover'}}/>
+      <div className="img-gallery-main mb-3 position-relative" style={{height:380,borderRadius:12,overflow:'hidden'}}>
+        <Image
+          src={imgs[active]}
+          alt="main"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          style={{objectFit:'cover'}}
+          priority
+        />
       </div>
       {/* Thumbs */}
       <div className="d-flex gap-2 flex-wrap">
         {imgs.map((src, i) => (
-          <img key={i} src={src} alt={`thumb-${i}`}
+          <div
+            key={i}
             className={`img-gallery-thumb${i === active ? ' active' : ''}`}
-            onClick={() => setActive(i)}/>
+            onClick={() => setActive(i)}
+            style={{position:'relative',cursor:'pointer'}}
+          >
+            <Image
+              src={src}
+              alt={`thumb-${i}`}
+              fill
+              sizes="80px"
+              style={{objectFit:'cover'}}
+            />
+          </div>
         ))}
       </div>
     </div>
