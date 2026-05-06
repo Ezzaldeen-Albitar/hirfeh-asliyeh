@@ -1,6 +1,6 @@
 'use client';
 import { useSelector, useDispatch } from 'react-redux';
-import { addItem, removeItem, updateQty, clearCart, selectCart, selectCartTotal, selectCartCount } from '@/store/slices/cartSlice';
+import { addItem, addItemWithQty, removeItem, updateQty, clearCart, selectCart, selectCartTotal, selectCartCount } from '@/store/slices/cartSlice';
 
 export function useCart() {
   const dispatch = useDispatch();
@@ -10,9 +10,10 @@ export function useCart() {
 
   return {
     items, total, count,
-    addItem:    (product)     => dispatch(addItem(product)),
-    removeItem: (id)          => dispatch(removeItem(id)),
-    updateQty:  (id, qty)     => dispatch(updateQty({ id, qty })),
-    clearCart:  ()            => dispatch(clearCart()),
+    addItem:       (product)          => dispatch(addItem(product)),
+    addItemWithQty:(product, qty)     => dispatch(addItemWithQty({ product, qty })),
+    removeItem:    (id)               => dispatch(removeItem(id)),
+    updateQty:     (id, qty)          => dispatch(updateQty({ id, qty })),
+    clearCart:     ()                 => dispatch(clearCart()),
   };
 }

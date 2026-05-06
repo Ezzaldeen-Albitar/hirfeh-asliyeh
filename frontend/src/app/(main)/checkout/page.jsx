@@ -1,4 +1,5 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { toast } from '@/lib/sweetalert';
 const STEPS = ['السلة', 'الشحن', 'الدفع', 'التأكيد'];
 const GOVS  = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','الطفيلة','معان','العقبة','عجلون'];
 
-export default function CheckoutPage() {
+function CheckoutPage() {
   const router = useRouter();
   const { items, total, removeItem, updateQty, clearCart } = useCart();
   const { isAuth, user } = useAuth();
@@ -277,5 +278,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthGuard>
+      <CheckoutPage />
+    </AuthGuard>
   );
 }

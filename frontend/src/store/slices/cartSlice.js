@@ -1,11 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-const load = () => {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem('ha_cart') || '[]'); }
-  catch { return []; }
-};
-
 const save = (items) => {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem('ha_cart', JSON.stringify(items)); } catch {}
@@ -13,14 +7,29 @@ const save = (items) => {
 
 const cartSlice = createSlice({
   name: 'cart',
-  initialState: { items: load() },
+  // initialState دايماً فارغ (SSR-safe) — الـ hydration يصير في useEffect
+  initialState: { items: [], hydrated: false },
   reducers: {
+    // يُستدعى من useEffect على الكلاينت فقط
+    hydrateCart: (state, { payload }) => {
+      state.items    = payload;
+      state.hydrated = true;
+    },
     addItem: (state, { payload }) => {
       const existing = state.items.find(i => i._id === payload._id);
       if (existing) {
         existing.qty = Math.min(existing.qty + 1, payload.stock || 99);
       } else {
         state.items.push({ ...payload, qty: 1 });
+      }
+      save(state.items);
+    },
+    addItemWithQty: (state, { payload: { product, qty } }) => {
+      const existing = state.items.find(i => i._id === product._id);
+      if (existing) {
+        existing.qty = Math.min(existing.qty + qty, product.stock || 99);
+      } else {
+        state.items.push({ ...product, qty: Math.min(qty, product.stock || 99) });
       }
       save(state.items);
     },
@@ -40,7 +49,7 @@ const cartSlice = createSlice({
   },
 });
 
-export const { addItem, removeItem, updateQty, clearCart } = cartSlice.actions;
+export const { addItem, addItemWithQty, removeItem, updateQty, clearCart, hydrateCart } = cartSlice.actions;
 export default cartSlice.reducer;
 
 export const selectCart      = (s) => s.cart.items;
