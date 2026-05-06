@@ -1,11 +1,12 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import { useState } from 'react';
 import { useGetCustomizationsQuery, useSendMessageMutation, useUpdateCustomizationStatusMutation } from '@/store/api/customizationsApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/lib/sweetalert';
 import CustomizationChat from '@/components/dashboard/CustomizationChat';
 
-export default function CustomizationsPage() {
+function CustomizationsPage() {
   const { isArtisan } = useAuth();
   const { data, isLoading } = useGetCustomizationsQuery();
   const [sendMessage] = useSendMessageMutation();
@@ -82,5 +83,13 @@ export default function CustomizationsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthGuard>
+      <CustomizationsPage />
+    </AuthGuard>
   );
 }

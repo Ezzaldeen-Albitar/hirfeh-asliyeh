@@ -95,3 +95,67 @@ h1,h2,h3,h4,h5,h6{font-family:'Amiri',serif}
 
 @media(max-width:991px){.sidebar-nav{display:none}.section-py{padding:60px 0}}
 @media(max-width:576px){.section-title{font-size:1.6rem}}
+
+/* ── Navbar icon buttons (visible on light topbar) ── */
+.navbar-icon-btn{color:var(--charcoal)!important;background:transparent;transition:background .2s,color .2s}
+.navbar-icon-btn:hover{background:rgba(122,28,46,.08)!important;color:var(--burgundy)!important}
+.navbar-icon-btn i{color:inherit!important}
+
+/* ── Search overlay ── */
+.search-overlay-backdrop{position:fixed;inset:0;background:rgba(44,37,32,.35);z-index:1040;backdrop-filter:blur(3px)}
+.search-overlay-box{background:#fff;border-bottom:2px solid rgba(184,150,60,.25);padding:18px 0;box-shadow:0 8px 32px rgba(122,28,46,.12);position:relative;z-index:1}
+.search-overlay-input{flex:1;border:none;outline:none;background:transparent;font-family:'Tajawal',sans-serif;font-size:1.05rem;color:var(--charcoal);direction:rtl}
+.search-overlay-input::placeholder{color:var(--stone)}
+
+/* ── Responsive fixes ── */
+@media(max-width:991.98px){
+  /* ensure hamburger never shows on desktop */
+  .d-lg-none{display:flex!important}
+}
+@media(min-width:992px){
+  .d-lg-none{display:none!important}
+}
+
+/* ── Footer links hover (Server Component لا يدعم onMouseEnter) ── */
+.footer-link:hover { color: var(--gold-light) !important; }
+.footer-social-link:hover { border-color: var(--gold) !important; color: var(--gold) !important; }
+
+/* ── Sidebar mobile toggle ── */
+.sidebar-mobile-toggle {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 200;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--burgundy);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 20px rgba(122,28,46,.4);
+  font-size: 1.2rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .2s;
+}
+.sidebar-mobile-toggle:hover { background: var(--burgundy-dark); }
+
+@media(max-width:991px) {
+  .sidebar-mobile-toggle { display: flex; }
+  .sidebar-nav.mobile-open {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    width: 260px;
+  }
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 185;
+  }
+}

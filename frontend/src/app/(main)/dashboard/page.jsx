@@ -1,4 +1,5 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +22,7 @@ const QUICK_LINKS = [
   { href:'/customizations',     icon:'bi-palette',      label:'طلبات التخصيص',   color:'#8B5CF6' },
 ];
 
-export default function CustomerDashboard() {
+function CustomerDashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useGetOrdersQuery({ limit:20 });
   const [cancelOrder] = useCancelOrderMutation();
@@ -159,5 +160,13 @@ export default function CustomerDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthGuard>
+      <CustomerDashboard />
+    </AuthGuard>
   );
 }
