@@ -207,3 +207,16 @@ export async function toggleFeatured(req, res, next) {
     next(err);
   }
 }
+export async function getFeaturedProducts(req, res, next) {
+  try {
+    const { limit = 8 } = req.query;
+    const products = await Product.find({ isActive: true, isFeatured: true })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .populate('artisan', 'craftName region profileImage isVerified')
+      .lean();
+    return res.json({ products });
+  } catch (err) {
+    next(err);
+  }
+}

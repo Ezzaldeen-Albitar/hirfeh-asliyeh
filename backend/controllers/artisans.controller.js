@@ -206,3 +206,18 @@ export async function assignBadge(req, res, next) {
     next(err);
   }
 }
+
+export async function getFeaturedArtisans(req, res, next) {
+  try {
+    const { limit = 6 } = req.query;
+    const artisans = await ArtisanProfile.find({ isActive: true, isVerified: true })
+      .sort({ rating: -1, totalSales: -1 })
+      .limit(parseInt(limit))
+      .populate('user', 'name avatar')
+      .populate('badges', 'nameAr nameEn icon')
+      .lean();
+    return res.json({ artisans });
+  } catch (err) {
+    next(err);
+  }
+}
