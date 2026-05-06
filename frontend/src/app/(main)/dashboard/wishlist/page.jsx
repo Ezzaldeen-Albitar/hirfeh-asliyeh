@@ -1,4 +1,5 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useGetWishlistQuery, useRemoveFromWishlistMutation } from '@/store/api/wishlistApi';
@@ -6,7 +7,7 @@ import { useCart } from '@/hooks/useCart';
 import { toast } from '@/lib/sweetalert';
 import StarRating from '@/components/common/StarRating';
 
-export default function WishlistPage() {
+function WishlistPage() {
   const { data, isLoading } = useGetWishlistQuery();
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
   const { addItem } = useCart();
@@ -61,7 +62,8 @@ export default function WishlistPage() {
                   <div className="ha-card overflow-hidden h-100">
                     <Link href={`/products/${p._id}`} className="text-decoration-none">
                       <div style={{height:220,overflow:'hidden',position:'relative'}}>
-                        <Image src={p.images?.[0]} alt={p.name} className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>e.currentTarget.style.transform='scale(1.05)'}
+                        <Image src={p.images?.[0]} alt={p.name} className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover",transition:'transform .35s'}}
+                          onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'}
                           onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
                         <button
                           onClick={e=>{e.preventDefault();handleRemove(p._id, p.name);}}
@@ -95,5 +97,13 @@ export default function WishlistPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthGuard>
+      <WishlistPage />
+    </AuthGuard>
   );
 }

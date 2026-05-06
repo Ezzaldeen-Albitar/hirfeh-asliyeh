@@ -1,4 +1,5 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useGetArtisanDashboardQuery, useUpdateArtisanProfileMutation } from '@/store/api/artisansApi';
@@ -19,7 +20,7 @@ const GOVS   = ['عمان','الزرقاء','إربد','مأدبا','جرش','ع
 
 const EMPTY_PRODUCT = { name:'', price:'', stock:'', description:'', craftType:'', governorate:'', image:null };
 
-export default function ArtisanDashboard() {
+function ArtisanDashboard() {
   const { user, updateUser } = useAuth();
   const [tab, setTab]       = useState(0);
   const [activeCustom, setActiveCustom] = useState(null);
@@ -425,5 +426,13 @@ export default function ArtisanDashboard() {
 
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthGuard requiredRole="artisan">
+      <ArtisanDashboard />
+    </AuthGuard>
   );
 }
