@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useGetWorkshopQuery, useBookWorkshopMutation } from '@/store/api/workshopsApi';
 import { toast } from '@/lib/sweetalert';
@@ -38,7 +39,7 @@ export default function WorkshopDetailPage() {
   return (
     <div className="bg-cream" style={{minHeight:'80vh'}}>
       <div style={{position:'relative',height:320,overflow:'hidden'}}>
-        <img src={w.img} alt={w.title} className="w-100 h-100" style={{objectFit:'cover'}}/>
+        <Image src={w.img} alt={w.title} className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>
         <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(44,37,32,.75) 0%,transparent 60%)'}}/>
       </div>
       <div className="container" style={{marginTop:-60,position:'relative',zIndex:2,paddingBottom:60}}>
