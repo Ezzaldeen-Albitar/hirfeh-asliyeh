@@ -1,4 +1,5 @@
 'use client';
+import AuthGuard from '@/components/auth/AuthGuard';
 import { Suspense } from 'react';
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -57,6 +58,14 @@ function NewCustomizationForm() {
   );
 }
 
-export default function NewCustomizationPage() {
+function NewCustomizationPage() {
   return <Suspense fallback={<div className="text-center py-5"><span className="spinner-border" style={{color:'var(--burgundy)'}}/></div>}><NewCustomizationForm/></Suspense>;
+}
+
+export default function Page() {
+  return (
+    <AuthGuard>
+      <NewCustomizationPage />
+    </AuthGuard>
+  );
 }
