@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,8 +32,8 @@ export default function LoginPage() {
     <div className="min-vh-100 d-flex" style={{background:'var(--cream)'}}>
       {/* Left — image */}
       <div className="d-none d-lg-block col-lg-6 position-relative overflow-hidden">
-        <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000&q=80"
-          alt="craft" className="w-100 h-100" style={{objectFit:'cover'}}/>
+        <Image src="/premium_digital_heritage_marketplace_brand_hero_im.png"
+          alt="craft" fill sizes="50vw" style={{objectFit:'cover'}}/>
         <div style={{position:'absolute',inset:0,background:'rgba(90,20,34,0.45)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
           <div style={{fontFamily:'Amiri,serif',fontSize:'3rem',color:'#fff',textAlign:'center',lineHeight:1.2}}>
             حِرفة أصلية

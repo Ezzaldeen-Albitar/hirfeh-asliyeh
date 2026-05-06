@@ -21,7 +21,7 @@ export const adminApi = baseApi.injectEndpoints({
       query: (params) => ({ url: '/admin/orders', params }),
       providesTags: ['Orders'],
     }),
-    getAllProducts: builder.query({
+    getAllAdminProducts: builder.query({
       query: (params) => ({ url: '/admin/products', params }),
       providesTags: ['Products'],
     }),
@@ -41,12 +41,16 @@ export const adminApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/admin/artisans/${id}/approve`, method: 'PATCH' }),
       invalidatesTags: ['Artisans'],
     }),
+    rejectArtisan: builder.mutation({
+      query: (id) => ({ url: `/admin/artisans/${id}/reject`, method: 'PATCH' }),
+      invalidatesTags: ['Artisans'],
+    }),
   }),
 });
 
 export const {
   useGetAdminStatsQuery, useGetAllUsersQuery, useUpdateUserRoleMutation,
-  useDeleteUserMutation, useGetAllOrdersQuery, useGetAllProductsQuery,
+  useDeleteUserMutation, useGetAllOrdersQuery, useGetAllAdminProductsQuery,
   useGetBadgesQuery, useAssignBadgeMutation, useGetPendingArtisansQuery,
-  useApproveArtisanMutation,
+  useApproveArtisanMutation, useRejectArtisanMutation,
 } = adminApi;

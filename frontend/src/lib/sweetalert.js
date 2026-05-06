@@ -1,27 +1,32 @@
 import Swal from 'sweetalert2';
 
-const Toast = Swal.mixin({
-  toast: true, position: 'top-end', showConfirmButton: false, timer: 3000,
-  timerProgressBar: true,
-  customClass: { popup: 'ha-toast' },
-});
-
-export const toast = {
-  success: (msg) => Toast.fire({ icon: 'success', title: msg }),
-  error:   (msg) => Toast.fire({ icon: 'error',   title: msg }),
-  info:    (msg) => Toast.fire({ icon: 'info',     title: msg }),
-  warning: (msg) => Toast.fire({ icon: 'warning',  title: msg }),
+const base = {
+  customClass: {
+    popup:            'ha-toast',
+    confirmButton:    'btn btn-primary px-4',
+    cancelButton:     'btn btn-outline-secondary px-4 ms-2',
+  },
+  buttonsStyling: false,
+  fontFamily:     'Tajawal, sans-serif',
 };
 
-export const confirm = (opts = {}) =>
+export const toast = {
+  success: (msg) => Swal.fire({ ...base, icon:'success', title:msg, toast:true, position:'top-end', showConfirmButton:false, timer:3000, timerProgressBar:true }),
+  error:   (msg) => Swal.fire({ ...base, icon:'error',   title:msg, toast:true, position:'top-end', showConfirmButton:false, timer:4000, timerProgressBar:true }),
+  info:    (msg) => Swal.fire({ ...base, icon:'info',    title:msg, toast:true, position:'top-end', showConfirmButton:false, timer:3000, timerProgressBar:true }),
+  warning: (msg) => Swal.fire({ ...base, icon:'warning', title:msg, toast:true, position:'top-end', showConfirmButton:false, timer:3500, timerProgressBar:true }),
+};
+
+export const confirm = ({ title, text, confirmButtonText='تأكيد', confirmButtonColor='var(--burgundy)', cancelButtonText='إلغاء' } = {}) =>
   Swal.fire({
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#7A1C2E',
-    cancelButtonColor: '#C4B89A',
-    confirmButtonText: opts.confirmText || 'نعم، تأكيد',
-    cancelButtonText:  opts.cancelText  || 'إلغاء',
-    title:   opts.title   || 'هل أنت متأكد؟',
-    text:    opts.text    || '',
-    ...opts,
+    ...base,
+    title, text,
+    icon:               'warning',
+    showCancelButton:   true,
+    confirmButtonText,
+    cancelButtonText,
+    confirmButtonColor,
+    reverseButtons:     true,
   });
+
+export default Swal;

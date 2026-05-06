@@ -3,6 +3,9 @@ import { verifyToken, requireRole } from '../middleware/auth.middleware.js';
 import * as artisansController from '../controllers/artisans.controller.js';
 
 const router = Router();
+
+// ✅ Static routes MUST come before dynamic /:id routes
+router.get('/featured', artisansController.getFeaturedArtisans);
 router.get('/', artisansController.getArtisans);
 router.get('/:id', artisansController.getArtisan);
 router.post('/apply', verifyToken, artisansController.applyAsArtisan);

@@ -10,12 +10,16 @@ export const productsApi = baseApi.injectEndpoints({
       query: (id) => `/products/${id}`,
       providesTags: (r, e, id) => [{ type: 'Products', id }],
     }),
+    getFeaturedProducts: builder.query({
+      query: () => '/products/featured',
+      providesTags: ['Products'],
+    }),
     createProduct: builder.mutation({
       query: (body) => ({ url: '/products', method: 'POST', body }),
       invalidatesTags: ['Products'],
     }),
     updateProduct: builder.mutation({
-      query: ({ id, ...body }) => ({ url: `/products/${id}`, method: 'PUT', body }),
+      query: ({ id, body }) => ({ url: `/products/${id}`, method: 'PUT', body }),
       invalidatesTags: ['Products'],
     }),
     deleteProduct: builder.mutation({
@@ -26,17 +30,11 @@ export const productsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: '/admin/products', params }),
       providesTags: ['Products'],
     }),
-    getFeaturedProducts: builder.query({
-      query: () => '/products/featured',
-      providesTags: ['Products'],
-    }),
   }),
 });
 
 export const {
-  useGetProductsQuery, useGetProductQuery, useCreateProductMutation,
-  useUpdateProductMutation, useDeleteProductMutation, useGetFeaturedProductsQuery,
-  useGetAllProductsQuery,
+  useGetProductsQuery, useGetProductQuery, useGetFeaturedProductsQuery,
+  useCreateProductMutation, useUpdateProductMutation,
+  useDeleteProductMutation, useGetAllProductsQuery,
 } = productsApi;
-
-
