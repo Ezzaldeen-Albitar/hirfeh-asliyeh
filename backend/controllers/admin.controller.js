@@ -6,6 +6,25 @@ import Review from '../models/Review.js';
 import Badge from '../models/Badge.js';
 import { createError } from '../middleware/error.middleware.js';
 
+export async function verifyArtisan(req, res, next) {
+  try {
+    const artisan = await ArtisanProfile.findById(req.params.id).populate('user', 'name email');
+    if (!artisan) throw createError(404, 'Artisan profile not found.');
+    artisan.isVerified = true;
+    await artisan.save();
+    // Send verification email (imported lazily to avoid circular deps)
+    const { sendArtisanVerifiedEmail } = await import('../services/mailer.service.js');
+    try {
+      await sendArtisanVerifiedEmail(artisan.user.email, artisan.user.name);
+    } catch (e) {
+      console.error('Artisan verification email failed:', e.message);
+    }
+    return res.json({ message: 'Artisan verified.', artisan });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getDashboardStats(req, res, next) {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
