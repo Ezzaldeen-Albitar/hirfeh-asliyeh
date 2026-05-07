@@ -1,12 +1,19 @@
 import nodemailer from 'nodemailer';
-const createTransporter = () =>
-    nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-    });
+
+// Transporter singleton — created once and reused for all emails
+let _transporter = null;
+function getTransporter() {
+    if (!_transporter) {
+        _transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+    }
+    return _transporter;
+}
 const baseTemplate = (content) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -86,7 +93,7 @@ const artisanVerifiedTemplate = (name) => baseTemplate(`
 `);
 
 export async function sendOTPEmail(to, name, otp) {
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     await transporter.sendMail({
         from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
         to,
@@ -96,7 +103,7 @@ export async function sendOTPEmail(to, name, otp) {
 }
 
 export async function sendPasswordResetEmail(to, name, otp) {
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     await transporter.sendMail({
         from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
         to,
@@ -106,7 +113,7 @@ export async function sendPasswordResetEmail(to, name, otp) {
 }
 
 export async function sendOrderConfirmationEmail(to, name, orderNumber, total) {
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     await transporter.sendMail({
         from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
         to,
@@ -116,7 +123,7 @@ export async function sendOrderConfirmationEmail(to, name, orderNumber, total) {
 }
 
 export async function sendArtisanVerifiedEmail(to, name) {
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     await transporter.sendMail({
         from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
         to,

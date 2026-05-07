@@ -26,6 +26,7 @@ const orderSchema = new Schema(
     orderNumber: {
       type: String,
       unique: true,
+      required: true,
     },
     customer: {
       type: Schema.Types.ObjectId,
@@ -84,12 +85,13 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ 'items.artisan': 1, status: 1 });
 orderSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
-orderSchema.pre('save', function (next) {
+orderSchema.pre('save', async function (next) {
   if (!this.orderNumber) {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(1000 + Math.random() * 9000);
-    this.orderNumber = `ORD-${dateStr}-${random}`;
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // Use crypto-random hex suffix to eliminate collision risk
+    const { randomBytes } = await import('crypto');
+    const suffix = randomBytes(3).toString('hex').toUpperCase(); // 6 hex chars
+    this.orderNumber = `ORD-${dateStr}-${suffix}`;
   }
   if (this.isModified('status')) {
     this.statusHistory.push({ status: this.status });

@@ -1,7 +1,9 @@
 import Review from '../models/Review.js';
+import mongoose from 'mongoose';
+
 export async function recalculateProductRating(Product, productId) {
   const result = await Review.aggregate([
-    { $match: { product: productId, isVisible: true } },
+    { $match: { product: new mongoose.Types.ObjectId(productId), isVisible: true } },
     {
       $group: {
         _id: '$product',
@@ -21,7 +23,7 @@ export async function recalculateProductRating(Product, productId) {
 
 export async function recalculateArtisanRating(ArtisanProfile, artisanId) {
   const result = await Review.aggregate([
-    { $match: { artisan: artisanId, isVisible: true } },
+    { $match: { artisan: new mongoose.Types.ObjectId(artisanId), isVisible: true } },
     {
       $group: {
         _id: '$artisan',

@@ -262,10 +262,32 @@ export async function resetPassword(req, res, next) {
 export async function googleAuth(req, res, next) {
   try {
     const { idToken } = req.body;
-    const { email, name, googleId, avatar } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken is required.' });
+    }
+
+    // Verify the token with Google's public endpoint
+    const googleRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+    );
+    if (!googleRes.ok) {
+      return res.status(401).json({ message: 'Invalid Google token.' });
+    }
+    const payload = await googleRes.json();
+
+    // Confirm the token was issued for our app
+    const validAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+    ].filter(Boolean);
+    if (validAudiences.length && !validAudiences.includes(payload.aud)) {
+      return res.status(401).json({ message: 'Google token audience mismatch.' });
+    }
+
+    const { email, name, sub: googleId, picture: avatar } = payload;
     if (!email || !googleId) {
       return res.status(400).json({ message: 'Invalid Google credentials.' });
     }
+
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
     if (!user) {
       user = await User.create({

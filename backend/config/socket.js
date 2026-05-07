@@ -27,8 +27,23 @@ export function initSocket(io) {
         socket.on('leave:customization', (requestId) => {
             socket.leave(`customization:${requestId}`);
         });
-        socket.on('join:order', (orderId) => {
-            socket.join(`order:${orderId}`);
+        socket.on('join:order', async (orderId) => {
+            // Only allow authenticated users who own or are artisans of the order
+            if (!socket.user?.userId) return;
+            try {
+                const Order = (await import('../models/Order.js')).default;
+                const order = await Order.findById(orderId).lean();
+                if (!order) return;
+                const userId = socket.user.userId.toString();
+                const isCustomer = order.customer.toString() === userId;
+                const isArtisan = order.items.some(i => i.artisan?.toString() === userId);
+                const isAdmin = socket.user.role === 'admin';
+                if (isCustomer || isArtisan || isAdmin) {
+                    socket.join(`order:${orderId}`);
+                }
+            } catch {
+                // silently ignore
+            }
         });
         socket.on('send:message', (data) => {
             io.to(`customization:${data.customizationId}`).emit('receive:message', {

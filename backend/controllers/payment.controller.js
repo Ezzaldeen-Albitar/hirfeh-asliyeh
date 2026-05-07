@@ -15,7 +15,10 @@ export async function createPaymentIntent(req, res, next) {
     if (order.paymentStatus === 'paid') {
       throw createError(400, 'Order is already paid.');
     }
-    const amountInCents = Math.round(order.totalAmount * 100);
+    // JOD is not supported by Stripe. Convert to USD using the configured rate.
+    // Set STRIPE_JOD_TO_USD_RATE in your .env (e.g. 1.41 for 1 JOD = 1.41 USD)
+    const JOD_TO_USD = parseFloat(process.env.STRIPE_JOD_TO_USD_RATE || '1.41');
+    const amountInCents = Math.round(order.totalAmount * JOD_TO_USD * 100);
     const paymentIntent = await getStripe().paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
