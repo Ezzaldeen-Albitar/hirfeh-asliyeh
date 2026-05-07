@@ -9,11 +9,13 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, { payload }) => {
-      state.user            = payload.user;
-      state.token           = payload.token;
-      state.isAuthenticated = true;
+      state.user            = payload.user || null;
+      state.token           = payload.token || null;
+      state.isAuthenticated = Boolean(payload.user);
       state.role            = payload.user?.role;
-      Cookies.set('token', payload.token, { expires: 7 });
+      if (payload.token) {
+        Cookies.set('token', payload.token, { expires: 7 });
+      }
       try { localStorage.setItem('ha_user', JSON.stringify(payload.user)); } catch {}
     },
     logout: (state) => {
