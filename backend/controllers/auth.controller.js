@@ -11,6 +11,29 @@ import {
 } from '../services/otp.service.js';
 import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailer.service.js';
 import { signTokenAndSetCookie, clearAuthCookie } from '../utils/jwt.js';
+
+async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
+  try {
+    if (purpose === 'reset') {
+      await sendPasswordResetEmail(email, name, otp);
+    } else {
+      await sendOTPEmail(email, name, otp);
+    }
+    return { delivered: true };
+  } catch (mailErr) {
+    console.error('Mail send failed:', mailErr.message);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[DEV OTP] ${purpose} code for ${email}: ${otp}`);
+      return {
+        delivered: false,
+        devOtp: otp,
+        message: 'Email delivery failed in development. Use the OTP printed in the backend terminal.',
+      };
+    }
+    throw mailErr;
+  }
+}
+
 export async function register(req, res, next) {
   try {
     const { name, email, password, role } = req.body;
@@ -27,14 +50,13 @@ export async function register(req, res, next) {
       role: safeRole,
       emailOtp: buildOTPDoc(otp),
     });
-    try {
-      await sendOTPEmail(email, name, otp);
-    } catch (mailErr) {
-      console.error('Mail send failed:', mailErr.message);
-    }
+    const delivery = await deliverOtpEmail({ email, name, otp });
     return res.status(201).json({
-      message: 'Account created. Please check your email for the verification code.',
+      message: delivery.delivered
+        ? 'Account created. Please check your email for the verification code.'
+        : delivery.message,
       email: user.email,
+      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
     });
   } catch (err) {
     next(err);
@@ -63,7 +85,7 @@ export async function login(req, res, next) {
         message: `Account banned: ${user.bannedReason || 'Contact support for details.'}`,
       });
     }
-    signTokenAndSetCookie(res, {
+    const token = signTokenAndSetCookie(res, {
       userId: user._id,
       role: user.role,
       email: user.email,
@@ -78,6 +100,7 @@ export async function login(req, res, next) {
         avatar: user.avatar,
         isEmailVerified: user.isEmailVerified,
       },
+      token,
     });
   } catch (err) {
     next(err);
@@ -139,7 +162,7 @@ export async function verifyOTPHandler(req, res, next) {
       user.isEmailVerified = true;
       user.emailOtp = undefined;
       await user.save();
-      signTokenAndSetCookie(res, {
+      const token = signTokenAndSetCookie(res, {
         userId: user._id,
         role: user.role,
         email: user.email,
@@ -152,6 +175,7 @@ export async function verifyOTPHandler(req, res, next) {
           email: user.email,
           role: user.role,
         },
+        token,
       });
     }
     if (purpose === 'reset') {
@@ -187,16 +211,11 @@ export async function resendOTP(req, res, next) {
       user.emailOtp = newOtpDoc;
     }
     await user.save();
-    try {
-      if (purpose === 'reset') {
-        await sendPasswordResetEmail(email, user.name, otp);
-      } else {
-        await sendOTPEmail(email, user.name, otp);
-      }
-    } catch (mailErr) {
-      console.error('Mail send failed:', mailErr.message);
-    }
-    return res.json({ message: 'New verification code sent.' });
+    const delivery = await deliverOtpEmail({ email, name: user.name, otp, purpose });
+    return res.json({
+      message: delivery.delivered ? 'New verification code sent.' : delivery.message,
+      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
+    });
   } catch (err) {
     next(err);
   }
@@ -213,11 +232,7 @@ export async function forgotPassword(req, res, next) {
       const otp = generateOTP();
       user.passwordResetOtp = { ...buildOTPDoc(otp), isUsed: false };
       await user.save();
-      try {
-        await sendPasswordResetEmail(email, user.name, otp);
-      } catch (mailErr) {
-        console.error('Mail send failed:', mailErr.message);
-      }
+      await deliverOtpEmail({ email, name: user.name, otp, purpose: 'reset' });
     }
     return res.json({ message: 'If this email exists, a reset code has been sent.' });
   } catch (err) {
@@ -269,7 +284,7 @@ export async function googleAuth(req, res, next) {
     if (user.isBanned) {
       return res.status(403).json({ message: 'Account banned.' });
     }
-    signTokenAndSetCookie(res, {
+    const token = signTokenAndSetCookie(res, {
       userId: user._id,
       role: user.role,
       email: user.email,
@@ -283,6 +298,7 @@ export async function googleAuth(req, res, next) {
         role: user.role,
         avatar: user.avatar,
       },
+      token,
     });
   } catch (err) {
     next(err);
