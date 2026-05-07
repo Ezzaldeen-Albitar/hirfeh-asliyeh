@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const customizationsApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getCustomizations: builder.query({
       query: () => '/customizations',

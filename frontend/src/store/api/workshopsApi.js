@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const workshopsApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getWorkshops: builder.query({
       query: (params) => ({ url: '/workshops', params }),

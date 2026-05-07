@@ -1,108 +1,144 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
-import OTPInput from '@/components/auth/OTPInput';
-import { toast } from '@/lib/sweetalert';
-import { useResendOtpMutation, useVerifyOtpMutation } from '@/store/api/authApi';
+import { useVerifyOtpMutation, useResendOtpMutation } from '@/store/api/authApi';
 import { setCredentials } from '@/store/slices/authSlice';
+import { toast } from '@/lib/sweetalert';
+import OTPInput from '@/components/auth/OTPInput';
 
 export default function VerifyOtpPage() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const dispatch = useDispatch();
-  const [verifyOtp, { isLoading }] = useVerifyOtpMutation();
-  const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
-  const [email, setEmail] = useState(searchParams.get('email') || '');
-  const [otp, setOtp] = useState('');
-  const purpose = searchParams.get('purpose') || 'verify';
+  const dispatch     = useDispatch();
+  const email        = searchParams.get('email') || '';
+
+  const [verifyOtp, { isLoading }]   = useVerifyOtpMutation();
+  const [resendOtp, { isLoading: resendLoading }] = useResendOtpMutation();
+  const [otp, setOtp]                 = useState('');
+  const [cooldown, setCooldown]       = useState(0); // ثواني قبل إعادة الإرسال
+
+  // Countdown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return toast.error('يرجى إدخال الإيميل');
-    if (otp.length < 6) return toast.error('يرجى إدخال الرمز كاملًا');
-
+    if (otp.length < 6) return toast.error('يرجى إدخال الرمز كاملاً');
+    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
     try {
-      const res = await verifyOtp({ email, otp, purpose }).unwrap();
-      if (purpose === 'reset') {
-        toast.success('تم التحقق من الرمز');
-        router.push(`/reset-password?email=${encodeURIComponent(res.email || email)}`);
-        return;
-      }
-      dispatch(setCredentials(res));
-      toast.success('تم تفعيل الحساب بنجاح');
+      const res = await verifyOtp({ email, otp, purpose: 'verify' }).unwrap();
+      if (res.token) dispatch(setCredentials(res));
+      toast.success('تم التحقق بنجاح! ✓');
       router.push('/');
-    } catch {
-      toast.error('الرمز غير صحيح أو منتهي الصلاحية');
+    } catch (err) {
+      const remaining = err?.data?.remainingAttempts;
+      if (remaining !== undefined) {
+        toast.error(`الرمز غير صحيح — تبقّى ${remaining} محاولة`);
+      } else {
+        toast.error(err?.data?.message || 'الرمز غير صحيح أو منتهي الصلاحية');
+      }
     }
   };
 
   const handleResend = async () => {
-    if (!email) {
-      toast.error('أدخل الإيميل أولًا');
-      return;
-    }
+    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
+    if (cooldown > 0) return;
     try {
-      const res = await resendOtp({ email, purpose }).unwrap();
-      toast.success(res?.message || 'تم إرسال رمز جديد');
+      const res = await resendOtp({ email, purpose: 'verify' }).unwrap();
+      toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني 📧');
+      setCooldown(120); // 2 دقيقة cooldown
+      setOtp('');
     } catch (err) {
-      toast.error(err?.data?.message || 'تعذر إعادة إرسال الرمز');
+      const retry = err?.data?.retryAfterSeconds;
+      if (retry) {
+        setCooldown(retry);
+        toast.info(`يرجى الانتظار ${retry} ثانية قبل الإعادة`);
+      } else {
+        toast.error(err?.data?.message || 'تعذر إرسال الرمز');
+      }
     }
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center p-3" style={{ background: 'var(--parchment)' }}>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center p-3"
+      style={{ background: 'var(--parchment)' }}>
       <div className="ha-card p-4 p-md-5 text-center" style={{ width: '100%', maxWidth: 440 }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: 'rgba(122,28,46,.1)',
-            margin: '0 auto 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <i className="bi bi-shield-check fs-2 text-burgundy" />
+
+        {/* Icon */}
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'rgba(122,28,46,.1)', margin: '0 auto 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <i className="bi bi-envelope-check fs-2 text-burgundy" />
         </div>
-        <h2 style={{ fontFamily: 'Amiri,serif', fontSize: '1.7rem', color: 'var(--charcoal)', marginBottom: 8 }}>التحقق من الرمز</h2>
-        <p style={{ color: 'var(--warm-gray)', fontSize: '0.88rem', marginBottom: 20 }}>
-          أدخل الإيميل ثم رمز التحقق المرسل إليه.
+
+        <h2 style={{ fontFamily: 'Amiri,serif', fontSize: '1.7rem', color: 'var(--charcoal)', marginBottom: 8 }}>
+          التحقق من البريد الإلكتروني
+        </h2>
+
+        <p style={{ color: 'var(--warm-gray)', fontSize: '0.88rem', marginBottom: 8 }}>
+          أرسلنا رمز التحقق المكوّن من 6 أرقام إلى
         </p>
+
+        {/* Email display */}
+        <div style={{
+          background: 'rgba(122,28,46,.06)', border: '1px solid rgba(122,28,46,.15)',
+          borderRadius: 8, padding: '8px 16px', marginBottom: 28,
+          fontWeight: 600, color: 'var(--burgundy)', fontSize: '0.92rem',
+          wordBreak: 'break-all',
+        }}>
+          <i className="bi bi-envelope me-2" />
+          {email || 'بريدك الإلكتروني'}
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            className="form-control mb-4"
-            placeholder="name@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
-          />
           <div className="mb-4">
-            <OTPInput length={6} onChange={setOtp} />
+            <OTPInput length={6} onChange={setOtp} value={otp} />
           </div>
+
           <button
             type="submit"
             disabled={isLoading || otp.length < 6}
+            suppressHydrationWarning
             className="btn btn-primary w-100 py-3 mb-3"
             style={{ borderRadius: 10, fontWeight: 700, fontSize: '1rem' }}
           >
             {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : null}
             تأكيد الرمز
           </button>
+
+          {/* Resend button with countdown */}
           <button
             type="button"
             onClick={handleResend}
-            disabled={isResending}
-            className="btn btn-link"
-            style={{ color: 'var(--warm-gray)', fontSize: '0.85rem' }}
+            disabled={resendLoading || cooldown > 0}
+            suppressHydrationWarning
+            className="btn btn-link w-100"
+            style={{ color: cooldown > 0 ? 'var(--stone)' : 'var(--burgundy)', fontSize: '0.85rem', textDecoration: 'none' }}
           >
-            <i className="bi bi-arrow-counterclockwise me-1" />
-            {isResending ? 'جارٍ إعادة الإرسال...' : 'إعادة إرسال الرمز'}
+            {resendLoading ? (
+              <span className="spinner-border spinner-border-sm me-1" />
+            ) : cooldown > 0 ? (
+              <>
+                <i className="bi bi-clock me-1" />
+                إعادة الإرسال بعد {cooldown}ث
+              </>
+            ) : (
+              <>
+                <i className="bi bi-arrow-counterclockwise me-1" />
+                لم يصلك الرمز؟ إعادة الإرسال
+              </>
+            )}
           </button>
+
+          <p className="mt-3 mb-0" style={{ fontSize: '0.82rem', color: 'var(--warm-gray)' }}>
+            تحقق من مجلد الـ Spam إذا لم يصلك الرمز
+          </p>
         </form>
       </div>
     </div>
