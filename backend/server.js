@@ -29,6 +29,7 @@ import craftCollectionRoutes from './routes/craftcollections.routes.js';
 
 await connectDB();
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
