@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const reviewsApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getProductReviews: builder.query({
       query: (productId) => `/reviews/product/${productId}`,
