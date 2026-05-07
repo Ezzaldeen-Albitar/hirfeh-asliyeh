@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const wishlistApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getWishlist: builder.query({
       query: () => '/wishlist',

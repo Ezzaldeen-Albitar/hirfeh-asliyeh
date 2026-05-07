@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const productsApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getProducts: builder.query({
       query: (params) => ({ url: '/products', params }),

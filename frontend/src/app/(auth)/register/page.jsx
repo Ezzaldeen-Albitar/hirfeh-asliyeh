@@ -1,39 +1,36 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { toast } from '@/lib/sweetalert';
 import { useRegisterMutation } from '@/store/api/authApi';
+import { toast } from '@/lib/sweetalert';
 
-const CRAFT_TYPES = ['السيراميك', 'النسيج', 'الفسيفساء', 'التطريز', 'الفخار', 'المجوهرات', 'الخشب', 'الزجاج', 'أخرى'];
-const GOVS = ['عمان', 'الزرقاء', 'إربد', 'مأدبا', 'جرش', 'عجلون', 'البلقاء', 'الكرك', 'العقبة'];
+const CRAFT_TYPES = ['السيراميك','النسيج','الفسيفساء','التطريز','الفخار','المجوهرات','الخشب','الزجاج','أخرى'];
+const GOVS = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','العقبة'];
 
 export default function RegisterPage() {
   const router = useRouter();
   const [register, { isLoading }] = useRegisterMutation();
   const [role, setRole] = useState('customer');
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirm: '',
-    craftSpecialty: '',
-    governorate: '',
-    bio: '',
+    name: '', email: '', password: '', confirm: '',
+    craftSpecialty: '', governorate: '', bio: '',
   });
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirm) return toast.error('كلمتا المرور غير متطابقتين');
-
+    if (form.password !== form.confirm) return toast.error('كلمات المرور غير متطابقة');
+    if (form.password.length < 8) return toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
     try {
-      const res = await register({ ...form, role }).unwrap();
-      toast.success(res?.message || 'تم إنشاء الحساب بنجاح');
-      router.push(`/verify-otp?email=${encodeURIComponent(res.email)}&purpose=verify`);
+      const { confirm, ...payload } = form;
+      await register({ ...payload, role }).unwrap();
+      toast.success('تم إنشاء الحساب! تحقق من بريدك الإلكتروني 📧');
+      // نمرر الإيميل لصفحة التحقق
+      router.push(`/verify-otp?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
-      toast.error(err?.data?.message || 'حدث خطأ ما، حاول مجددًا');
+      toast.error(err?.data?.message || 'حدث خطأ ما، حاول مجدداً');
     }
   };
 
@@ -47,13 +44,15 @@ export default function RegisterPage() {
         value={form[k]}
         onChange={set(k)}
         required
+        suppressHydrationWarning
         style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
       />
     </div>
   );
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center p-3" style={{ background: 'var(--parchment)' }}>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center p-3"
+      style={{ background: 'var(--parchment)' }}>
       <div className="ha-card p-4 p-md-5" style={{ width: '100%', maxWidth: 560 }}>
         <div className="text-center mb-4">
           <div style={{ fontFamily: 'Amiri,serif', fontSize: '1.5rem', color: 'var(--burgundy)' }}>حِرفة أصلية</div>
@@ -63,95 +62,93 @@ export default function RegisterPage() {
           <p style={{ color: 'var(--warm-gray)', fontSize: '0.88rem' }}>Create an account</p>
         </div>
 
+        {/* Role toggle */}
         <div className="d-flex justify-content-center mb-4">
           <div style={{ display: 'flex', border: '1.5px solid var(--stone)', borderRadius: 12, overflow: 'hidden' }}>
             {[{ k: 'customer', l: 'مشتري', icon: 'bi-person' }, { k: 'artisan', l: 'حرفي', icon: 'bi-tools' }].map(({ k, l, icon }) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setRole(k)}
+              <button key={k} type="button" onClick={() => setRole(k)}
+                suppressHydrationWarning
                 style={{
-                  padding: '8px 24px',
-                  border: 'none',
-                  fontFamily: 'Tajawal,sans-serif',
-                  fontWeight: 600,
-                  fontSize: '0.88rem',
+                  padding: '8px 24px', border: 'none',
+                  fontFamily: 'Tajawal,sans-serif', fontWeight: 600, fontSize: '0.88rem',
                   transition: 'all .2s',
                   background: role === k ? 'var(--burgundy)' : 'transparent',
                   color: role === k ? '#fff' : 'var(--warm-gray)',
-                }}
-              >
-                <i className={`bi ${icon} me-2`} />
-                {l}
+                }}>
+                <i className={`bi ${icon} me-2`} />{l}
               </button>
             ))}
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="row g-0">
-            <div className="col-12">{input('الاسم الكامل', 'name', 'text', 'محمد أحمد العلي')}</div>
-            <div className="col-12">{input('الإيميل', 'email', 'email', 'name@example.com')}</div>
-            <div className="col-12">{input('كلمة المرور', 'password', 'password', '••••••••')}</div>
-            <div className="col-12">{input('تأكيد كلمة المرور', 'confirm', 'password', '••••••••')}</div>
+          {input('الاسم الكامل', 'name', 'text', 'محمد أحمد العلي')}
 
-            {role === 'artisan' && (
-              <>
-                <div className="col-12">
-                  <div className="mb-3">
-                    <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>نوع الحرفة</label>
-                    <select
-                      className="form-select"
-                      value={form.craftSpecialty}
-                      onChange={set('craftSpecialty')}
-                      style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
-                    >
-                      <option value="">اختر نوع الحرفة</option>
-                      {CRAFT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="col-12">
-                  <div className="mb-3">
-                    <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>المحافظة</label>
-                    <select
-                      className="form-select"
-                      value={form.governorate}
-                      onChange={set('governorate')}
-                      style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
-                    >
-                      <option value="">اختر محافظتك</option>
-                      {GOVS.map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="col-12">
-                  <div className="mb-3">
-                    <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>نبذة عنك</label>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      placeholder="اكتب نبذة مختصرة عنك وعن حرفتك..."
-                      value={form.bio}
-                      onChange={set('bio')}
-                      style={{ borderRadius: 8, borderColor: 'var(--stone)', resize: 'none' }}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+          {/* Email */}
+          <div className="mb-3">
+            <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>
+              البريد الإلكتروني
+            </label>
+            <input
+              type="email"
+              className="form-control"
+              placeholder="name@example.com"
+              value={form.email}
+              onChange={set('email')}
+              required
+              suppressHydrationWarning
+              style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
+            />
+            <small style={{ color: 'var(--warm-gray)', fontSize: '0.78rem' }}>
+              <i className="bi bi-info-circle me-1" />سيُرسل رمز التحقق على هذا البريد
+            </small>
           </div>
 
-          <button type="submit" disabled={isLoading} className="btn btn-primary w-100 py-3 mb-3" style={{ borderRadius: 10, fontWeight: 700, fontSize: '1rem' }}>
+          {input('كلمة المرور (8 أحرف على الأقل)', 'password', 'password', '••••••••')}
+          {input('تأكيد كلمة المرور', 'confirm', 'password', '••••••••')}
+
+          {role === 'artisan' && (
+            <>
+              <div className="mb-3">
+                <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>نوع الحرفة</label>
+                <select className="form-select" value={form.craftSpecialty} onChange={set('craftSpecialty')}
+                  style={{ borderRadius: 8, borderColor: 'var(--stone)' }}>
+                  <option value="">اختر نوع الحرفة</option>
+                  {CRAFT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>المحافظة</label>
+                <select className="form-select" value={form.governorate} onChange={set('governorate')}
+                  style={{ borderRadius: 8, borderColor: 'var(--stone)' }}>
+                  <option value="">اختر محافظتك</option>
+                  {GOVS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>نبذة عنك</label>
+                <textarea className="form-control" rows={3}
+                  placeholder="اكتب نبذة مختصرة عنك وعن حرفتك..."
+                  value={form.bio} onChange={set('bio')}
+                  style={{ borderRadius: 8, borderColor: 'var(--stone)', resize: 'none' }} />
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            suppressHydrationWarning
+            className="btn btn-primary w-100 py-3 mb-3"
+            style={{ borderRadius: 10, fontWeight: 700, fontSize: '1rem' }}
+          >
             {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : null}
             إنشاء الحساب
           </button>
 
           <p className="text-center mb-0" style={{ fontSize: '0.88rem', color: 'var(--warm-gray)' }}>
             لديك حساب بالفعل؟{' '}
-            <Link href="/login" style={{ color: 'var(--burgundy)', fontWeight: 700 }}>
-              تسجيل الدخول
-            </Link>
+            <Link href="/login" style={{ color: 'var(--burgundy)', fontWeight: 700 }}>تسجيل الدخول</Link>
           </p>
         </form>
       </div>
