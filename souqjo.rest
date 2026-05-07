@@ -1,0 +1,865 @@
+### =============================================================
+###  SouqJo API — Full Test File
+###  Extension: REST Client (VS Code)
+###  Base URL: change @base if your port is different
+### =============================================================
+
+@base = http://localhost:5000/api
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWYzNDU5NTI2ZGMzZjQ4ZjNkOGYxMmYiLCJyb2xlIjoiYWRtaW4iLCJlbWFpbCI6ImFkbWluQHNvdXFqby5jb20iLCJpYXQiOjE3Nzc1NjE0OTQsImV4cCI6MTc3ODE2NjI5NH0.1S2JuKMeS5fvexaM6GXT4E7aRTWP0JSUzpFzUSrIc1o
+@customerToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWYzNDU5NTI2ZGMzZjQ4ZjNkOGYxMzAiLCJyb2xlIjoiY3VzdG9tZXIiLCJlbWFpbCI6ImxhcmFAZXhhbXBsZS5jb20iLCJpYXQiOjE3Nzc1NjEwNTEsImV4cCI6MTc3ODE2NTg1MX0.cH41NnT6NacHdTMizwxs7a-GTX7HdKfWtGtbUO9bedI
+@artisanToken = PASTE_ARTISAN_TOKEN_HERE
+
+### after seed: IDs will be different — paste real ones from responses
+@userId = 69f3459526dc3f48f3d8f130
+@artisanId = 69f3459626dc3f48f3d8f142
+@productId = 69f3459626dc3f48f3d8f14e
+@collectionId = PASTE_COLLECTION_ID_HERE
+@orderId = 69f36e3c370d7d358aadc926
+@reviewId = 69f3459626dc3f48f3d8f163
+@originStoryId = PASTE_ORIGIN_STORY_ID_HERE
+@workshopId = PASTE_WORKSHOP_ID_HERE
+@bookingId = PASTE_BOOKING_ID_HERE
+@customizationId = PASTE_CUSTOMIZATION_ID_HERE
+@notificationId = PASTE_NOTIFICATION_ID_HERE
+@badgeId = PASTE_BADGE_ID_HERE
+
+
+### ================================================================
+###  AUTH
+### ================================================================
+
+### [1] Register — customer
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test Customer",
+  "email": "testcustomer@example.com",
+  "password": "Password123!"
+}
+
+###
+
+### [2] Register — artisan user
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test Artisan",
+  "email": "testartisan@example.com",
+  "password": "Password123!"
+}
+
+###
+
+### [3] Verify OTP (use email + OTP from console/mailer)
+POST {{base}}/auth/verify-otp
+Content-Type: application/json
+
+{
+  "email": "testcustomer@example.com",
+  "otp": "123456"
+}
+
+###
+
+### [4] Resend OTP
+POST {{base}}/auth/resend-otp
+Content-Type: application/json
+
+{
+  "email": "testcustomer@example.com"
+}
+
+###
+
+### [5] Login — admin (from seed)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@souqjo.com",
+  "password": "Password123!"
+}
+
+###
+
+### [6] Login — customer (from seed)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "lara@example.com",
+  "password": "Password123!"
+}
+
+###
+
+### [7] Login — artisan (from seed)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatima@example.com",
+  "password": "Password123!"
+}
+
+###
+
+### [8] Get current user
+GET {{base}}/auth/me
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [9] Forgot password
+POST {{base}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "lara@example.com"
+}
+
+###
+
+### [10] Reset password
+POST {{base}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "lara@example.com",
+  "otp": "123456",
+  "newPassword": "NewPassword123!"
+}
+
+###
+
+### [11] Logout
+POST {{base}}/auth/logout
+Authorization: Bearer {{customerToken}}
+
+
+### ================================================================
+###  ARTISANS
+### ================================================================
+
+### [12] Get all artisans (public)
+GET {{base}}/artisans
+
+###
+
+### [13] Get all artisans — filter by region
+GET {{base}}/artisans?region=عمّان&verified=true&page=1&limit=10
+
+###
+
+### [14] Get single artisan (public)
+GET {{base}}/artisans/{{artisanId}}
+
+###
+
+### [15] Apply as artisan (logged-in user, role must be 'artisan' or user applies to become one)
+POST {{base}}/artisans/apply
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "craftName": "My Craft Studio",
+  "bio": "I have been crafting handmade leather goods for over 8 years using traditional Jordanian techniques.",
+  "region": "عمّان",
+  "specialties": ["Leather", "Bags", "Accessories"],
+  "yearsOfExperience": 8,
+  "acceptsCustomOrders": true,
+  "acceptsWorkshops": false,
+  "socialLinks": {
+    "instagram": "https://instagram.com/mycraftstudio",
+    "whatsapp": "00962791234567"
+  }
+}
+
+###
+
+### [16] Update artisan profile
+PUT {{base}}/artisans/{{artisanId}}
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "bio": "Updated bio — 10 years crafting leather goods in Amman.",
+  "acceptsWorkshops": true,
+  "yearsOfExperience": 10
+}
+
+###
+
+### [17] Get artisan stats (artisan sees own stats)
+GET {{base}}/artisans/{{artisanId}}/stats
+Authorization: Bearer {{artisanToken}}
+
+###
+
+### [18] Verify artisan (admin only)
+PUT {{base}}/artisans/{{artisanId}}/verify
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "isVerified": true
+}
+
+###
+
+### [19] Assign badge to artisan (admin only)
+POST {{base}}/artisans/{{artisanId}}/badges
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "badgeId": "{{badgeId}}"
+}
+
+
+### ================================================================
+###  PRODUCTS
+### ================================================================
+
+### [20] Get all products (public)
+GET {{base}}/products
+
+###
+
+### [21] Get products — with filters
+GET {{base}}/products?category=فخار وخزف&minPrice=10&maxPrice=100&sort=newest&page=1&limit=12
+
+###
+
+### [22] Get products — by collectionId
+GET {{base}}/products?collectionId={{collectionId}}
+
+###
+
+### [23] Get products — search
+GET {{base}}/products?search=clay bowl
+
+###
+
+### [24] Get products — featured only
+GET {{base}}/products?featured=true
+
+###
+
+### [25] Get single product (public)
+GET {{base}}/products/{{productId}}
+
+###
+
+### [26] Create product (artisan)
+POST {{base}}/products
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "title": "Handwoven Leather Wallet",
+  "description": "A slim wallet hand-stitched using vegetable-tanned Jordanian leather. Durable, minimal, and beautiful.",
+  "price": 42,
+  "category": "جلديات",
+  "productType": "ready-made",
+  "stock": 15,
+  "materials": ["Vegetable-tanned Leather", "Linen Thread"],
+  "tags": ["wallet", "leather", "handmade", "minimal"],
+  "images": ["https://placehold.co/600x600?text=Leather+Wallet"],
+  "thumbnailIndex": 0,
+  "allowsCustomization": true,
+  "customizationOptions": {
+    "colors": ["Brown", "Black", "Tan"],
+    "engravingAllowed": true,
+    "maxCharsEngraving": 20,
+    "notes": "Initials or short text can be engraved."
+  },
+  "dimensions": { "width": 10, "height": 1, "depth": 8 },
+  "weight": 0.08
+}
+
+###
+
+### [27] Create made-to-order product (artisan)
+POST {{base}}/products
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "title": "Custom Ceramic Nameplate",
+  "description": "A hand-crafted ceramic nameplate made to order. Perfect for home or office doors.",
+  "price": 35,
+  "category": "فخار وخزف",
+  "productType": "made-to-order",
+  "leadTimeDays": 10,
+  "materials": ["Ceramic", "Glaze"],
+  "tags": ["nameplate", "ceramic", "custom", "gift"],
+  "images": ["https://placehold.co/600x600?text=Nameplate"],
+  "thumbnailIndex": 0,
+  "allowsCustomization": true,
+  "customizationOptions": {
+    "engravingAllowed": true,
+    "maxCharsEngraving": 40,
+    "notes": "Specify the name or text you want on the plate."
+  }
+}
+
+###
+
+### [28] Update product (artisan/admin)
+PUT {{base}}/products/{{productId}}
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "price": 46,
+  "stock": 10,
+  "description": "Updated description — now with improved finish and packaging."
+}
+
+###
+
+### [29] Delete product (soft delete — artisan/admin)
+DELETE {{base}}/products/{{productId}}
+Authorization: Bearer {{artisanToken}}
+
+###
+
+### [30] Toggle featured (admin only)
+PUT {{base}}/products/{{productId}}/feature
+Authorization: Bearer {{adminToken}}
+
+
+### ================================================================
+###  CRAFT COLLECTIONS
+### ================================================================
+
+### [31] Get all collections (public)
+GET {{base}}/collections
+
+###
+
+### [32] Get all collections — filter by artisan
+GET {{base}}/collections?artisan={{artisanId}}
+
+###
+
+### [33] Get single collection + its products (public)
+GET {{base}}/collections/{{collectionId}}
+
+###
+
+### [34] Create collection (artisan/admin)
+POST {{base}}/collections
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "name": "Summer Glazes",
+  "nameAr": "Summer Glazes",
+  "description": "A limited collection of ceramics featuring light pastel summer glazes.",
+  "coverImage": "https://placehold.co/800x400?text=Summer+Glazes"
+}
+
+###
+
+### [35] Update collection (artisan/admin)
+PUT {{base}}/collections/{{collectionId}}
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "name": "Summer Glazes 2025",
+  "description": "Updated description for the summer collection."
+}
+
+###
+
+### [36] Add product to collection (artisan)
+POST {{base}}/collections/{{collectionId}}/products/{{productId}}
+Authorization: Bearer {{artisanToken}}
+
+###
+
+### [37] Remove product from collection (artisan)
+DELETE {{base}}/collections/{{collectionId}}/products/{{productId}}
+Authorization: Bearer {{artisanToken}}
+
+###
+
+### [38] Delete collection (artisan/admin)
+DELETE {{base}}/collections/{{collectionId}}
+Authorization: Bearer {{artisanToken}}
+
+
+### ================================================================
+###  ORIGIN STORIES
+### ================================================================
+
+### [39] Get origin story by product (public)
+GET {{base}}/origin-stories/product/{{productId}}
+
+###
+
+### [40] Create origin story (artisan)
+POST {{base}}/origin-stories
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "product": "{{productId}}",
+  "origin": {
+    "region": "Amman",
+    "village": "Jabal Al-Weibdeh",
+    "coordinates": { "lat": 31.9566, "lng": 35.9239 }
+  },
+  "craftingProcess": "The leather is first soaked in a natural tannin bath for 48 hours to achieve the vegetable-tan finish. It is then hand-cut using steel templates, saddle-stitched with waxed linen thread, and burnished along the edges using a bone folder. Final conditioning is done with natural beeswax. The entire process takes approximately two full days of work per wallet.",
+  "materialsSource": "Leather is sourced from a family-run tannery in Zarqa that has operated for over 60 years. Linen thread and hardware are imported from Italy to ensure quality.",
+  "culturalSignificance": "Leatherwork has deep roots in Jordanian Bedouin culture, where saddles, bags, and sheaths were essential daily items. This wallet carries that tradition forward in a modern, everyday form.",
+  "artisanPersonalNote": "I learned to cut leather from my uncle who made traditional saddles. Now I bring that same precision to wallets and bags for everyday use.",
+  "estimatedCraftingTime": "2 full days per unit",
+  "generationsTaught": "Learned from uncle, second generation in the family craft."
+}
+
+###
+
+### [41] Update origin story (artisan/admin)
+PUT {{base}}/origin-stories/{{originStoryId}}
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "artisanPersonalNote": "Updated personal note about my craft journey.",
+  "estimatedCraftingTime": "2 to 3 days per unit"
+}
+
+
+### ================================================================
+###  ORDERS
+### ================================================================
+
+### [42] Create order (customer)
+POST {{base}}/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 1
+    }
+  ],
+  "shippingAddress": {
+    "recipientName": "Lara Khalid",
+    "phone": "0791234567",
+    "city": "Amman",
+    "governorate": "Amman",
+    "street": "Al-Madeena St, Building 12",
+    "notes": "Ring the bell twice."
+  },
+  "paymentMethod": "cash_on_delivery"
+}
+
+###
+
+### [43] Get my orders (customer sees own / artisan sees orders containing their products)
+GET {{base}}/orders
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [44] Get single order
+GET {{base}}/orders/{{orderId}}
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [45] Update order status (artisan/admin)
+PUT {{base}}/orders/{{orderId}}/status
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "status": "confirmed",
+  "note": "Order confirmed and will be dispatched within 2 days."
+}
+
+###
+
+### [46] Cancel order (customer or admin)
+PUT {{base}}/orders/{{orderId}}/cancel
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "reason": "Changed my mind about the color."
+}
+
+
+### ================================================================
+###  REVIEWS
+### ================================================================
+
+### [47] Get reviews for a product (public)
+GET {{base}}/reviews/product/{{productId}}
+
+###
+
+### [48] Create review (customer — must have a delivered order with this product)
+POST {{base}}/reviews
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "product": "{{productId}}",
+  "order": "{{orderId}}",
+  "rating": 5,
+  "title": "Outstanding quality",
+  "body": "Truly exceptional craftsmanship. The product arrived beautifully packaged and exceeded all expectations. Highly recommend this artisan.",
+  "subRatings": {
+    "quality": 5,
+    "accuracy": 5,
+    "shipping": 4,
+    "communication": 5
+  }
+}
+
+###
+
+### [49] Artisan reply to review
+POST {{base}}/reviews/{{reviewId}}/reply
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "content": "Thank you so much! It was a pleasure crafting this for you. Looking forward to your next order."
+}
+
+###
+
+### [50] Delete review (admin only)
+DELETE {{base}}/reviews/{{reviewId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ================================================================
+###  WORKSHOPS
+### ================================================================
+
+### [51] Get all workshops (public)
+GET {{base}}/workshops
+
+###
+
+### [52] Get workshops — filter
+GET {{base}}/workshops?skillLevel=beginner&locationType=physical&page=1&limit=10
+
+###
+
+### [53] Get single workshop (public)
+GET {{base}}/workshops/{{workshopId}}
+
+###
+
+### [54] Create workshop session (artisan)
+POST {{base}}/workshops
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "title": "Advanced Ceramic Glazing Techniques",
+  "description": "A hands-on session for those with basic pottery experience who want to explore advanced glaze chemistry and application methods.",
+  "category": "Pottery",
+  "coverImage": "https://placehold.co/800x400?text=Glazing+Workshop",
+  "locationType": "physical",
+  "location": {
+    "address": "Wadi Al-Seer Studio, Building 5",
+    "city": "Amman",
+    "governorate": "Amman",
+    "coordinates": { "lat": 31.9539, "lng": 35.9106 }
+  },
+  "schedule": {
+    "date": "2025-08-15T10:00:00.000Z",
+    "startTime": "10:00",
+    "endTime": "14:00",
+    "durationMins": 240
+  },
+  "capacity": 6,
+  "price": 55,
+  "includes": ["All glazes and tools", "One fired piece to take home", "Certificate of completion"],
+  "requirements": ["Basic wheel throwing experience required"],
+  "skillLevel": "intermediate"
+}
+
+###
+
+### [55] Update workshop (artisan/admin)
+PUT {{base}}/workshops/{{workshopId}}
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "price": 60,
+  "capacity": 8,
+  "status": "upcoming"
+}
+
+###
+
+### [56] Book a workshop (customer)
+POST {{base}}/workshops/{{workshopId}}/book
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "participants": 1,
+  "specialRequests": "I am left-handed, please arrange tools accordingly."
+}
+
+###
+
+### [57] Get bookings for a session (artisan/admin)
+GET {{base}}/workshops/{{workshopId}}/bookings
+Authorization: Bearer {{artisanToken}}
+
+###
+
+### [58] Delete workshop (artisan/admin)
+DELETE {{base}}/workshops/{{workshopId}}
+Authorization: Bearer {{artisanToken}}
+
+
+### ================================================================
+###  CUSTOMIZATION REQUESTS
+### ================================================================
+
+### [59] Create customization request (customer)
+POST {{base}}/customizations
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "product": "{{productId}}",
+  "description": "I would like the bowl in a deep navy blue glaze instead of the standard terracotta, with my initials L.K. engraved on the base.",
+  "referenceImages": ["https://placehold.co/400x400?text=Reference+Image"],
+  "deadline": "2025-09-01T00:00:00.000Z"
+}
+
+###
+
+### [60] Get my customization requests
+GET {{base}}/customizations
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [61] Get single customization request
+GET {{base}}/customizations/{{customizationId}}
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [62] Artisan sends a quote
+PUT {{base}}/customizations/{{customizationId}}/quote
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "price": 48,
+  "estimatedDays": 12,
+  "note": "The navy glaze and engraving are doable. Price includes priority firing slot."
+}
+
+###
+
+### [63] Customer accepts the quote
+PUT {{base}}/customizations/{{customizationId}}/accept
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [64] Send a message in the customization thread
+POST {{base}}/customizations/{{customizationId}}/message
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "text": "Can you also add a small flower pattern on the rim?"
+}
+
+###
+
+### [65] Mark customization as complete (artisan)
+PUT {{base}}/customizations/{{customizationId}}/complete
+Authorization: Bearer {{artisanToken}}
+
+
+### ================================================================
+###  NOTIFICATIONS
+### ================================================================
+
+### [66] Get my notifications
+GET {{base}}/notifications
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [67] Mark single notification as read
+PUT {{base}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{customerToken}}
+
+###
+
+### [68] Mark all notifications as read
+PUT {{base}}/notifications/read-all
+Authorization: Bearer {{customerToken}}
+
+
+### ================================================================
+###  SEARCH
+### ================================================================
+
+### [69] Search products, artisans, workshops
+GET {{base}}/search?q=pottery
+
+###
+
+### [70] Search with category filter
+GET {{base}}/search?q=bowl&category=فخار وخزف
+
+
+### ================================================================
+###  UPLOAD
+### ================================================================
+
+### [71] Upload single image (multipart/form-data)
+### Replace the file path below with a real image file on your machine
+POST {{base}}/upload/image
+Authorization: Bearer {{artisanToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="image"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--boundary--
+
+###
+
+### [72] Upload multiple images (multipart/form-data)
+POST {{base}}/upload/multiple
+Authorization: Bearer {{artisanToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="images"; filename="img1.jpg"
+Content-Type: image/jpeg
+
+< ./img1.jpg
+--boundary--
+
+###
+
+### [73] Delete image from Cloudinary
+DELETE {{base}}/upload/image
+Authorization: Bearer {{artisanToken}}
+Content-Type: application/json
+
+{
+  "publicId": "souqjo/products/your_public_id_here"
+}
+
+
+### ================================================================
+###  PAYMENT
+### ================================================================
+
+### [74] Create Stripe payment intent (must have an unpaid order)
+POST {{base}}/payment/create-intent
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}"
+}
+
+
+### ================================================================
+###  ADMIN
+### ================================================================
+
+### [75] Admin dashboard stats
+GET {{base}}/admin/dashboard
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [76] Get all users
+GET {{base}}/admin/users
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [77] Get users — filter
+GET {{base}}/admin/users?role=artisan&search=fatima&page=1&limit=20
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [78] Ban / unban user (toggle)
+PUT {{base}}/admin/users/{{userId}}/ban
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Repeated policy violations."
+}
+
+###
+
+### [79] Get pending (unverified) artisans
+GET {{base}}/admin/artisans/pending
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [80] Get all products (admin view)
+GET {{base}}/admin/products
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [81] Get all products — filter by active/featured
+GET {{base}}/admin/products?isActive=true&isFeatured=true
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [82] Get all badges
+GET {{base}}/admin/badges
+Authorization: Bearer {{adminToken}}
+
+###
+
+### [83] Create badge (admin)
+POST {{base}}/admin/badges
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "nameEn": "Heritage Guardian",
+  "nameAr": "Heritage Guardian",
+  "icon": "shield",
+  "description": "Awarded to artisans who preserve rare traditional crafts.",
+  "criteria": "Practice a craft listed as endangered by the Ministry of Culture.",
+  "badgeType": "special"
+}
+
+###
+
+### [84] Health check (no auth)
+GET http://localhost:5000/health
