@@ -5,6 +5,10 @@ export const ordersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getOrders: builder.query({
       query: (params) => ({ url: '/orders', params }),
+      transformResponse: (response) => ({
+        data: response.orders,
+        pagination: response.pagination,
+      }),
       providesTags: ['Orders'],
     }),
     getOrder: builder.query({
@@ -21,6 +25,10 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
     getArtisanOrders: builder.query({
       query: (params) => ({ url: '/orders/artisan', params }),
+      transformResponse: (response) => ({
+        data: response.orders,
+        pagination: response.pagination,
+      }),
       providesTags: ['Orders'],
     }),
     cancelOrder: builder.mutation({

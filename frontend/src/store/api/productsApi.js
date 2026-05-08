@@ -29,6 +29,10 @@ export const productsApi = baseApi.injectEndpoints({
     }),
     getAllProducts: builder.query({
       query: (params) => ({ url: '/admin/products', params }),
+      transformResponse: (response) => ({
+        data: response.products,
+        pagination: response.pagination,
+      }),
       providesTags: ['Products'],
     }),
   }),
