@@ -8,7 +8,8 @@ export const adminApi = baseApi.injectEndpoints({
       query: () => '/admin/stats',
       transformResponse: (response) => ({
         data: response.stats,
-        revenueChart: response.salesLast30Days,
+        revenueChart: response.revenueChart || response.salesLast30Days || [],
+        recentOrders: response.recentOrders || [],
         categoryStats: response.categoryStats,
       }),
     }),

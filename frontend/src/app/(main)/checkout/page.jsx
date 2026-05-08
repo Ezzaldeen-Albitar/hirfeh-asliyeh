@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCreateOrderMutation } from '@/store/api/ordersApi';
 import { useConfirmPaymentIntentMutation, useCreatePaymentIntentMutation } from '@/store/api/paymentApi';
 import { toast } from '@/lib/sweetalert';
+import { DEFAULT_PRODUCT_IMAGE, getPrimaryImageSrc } from '@/lib/imageUtils';
 
 const STEPS = ['السلة', 'الشحن', 'الدفع', 'التأكيد'];
 const GOVS = ['عمان', 'الزرقاء', 'إربد', 'مأدبا', 'جرش', 'عجلون', 'البلقاء', 'الكرك', 'الطفيلة', 'معان', 'العقبة'];
@@ -369,7 +370,7 @@ function CheckoutPage() {
                   <div key={item._id} className="d-flex align-items-center gap-3 py-3" style={{ borderBottom: '1px solid var(--gold-pale)' }}>
                     <div style={{ width: 72, height: 72, borderRadius: 'inherit', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                       <Image
-                        src={item.images?.[0] || 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=80&q=70'}
+                        src={getPrimaryImageSrc(item.images, DEFAULT_PRODUCT_IMAGE)}
                         alt=""
                         fill
                         sizes="72px"
@@ -661,7 +662,7 @@ function CheckoutPage() {
                   <div key={item._id} className="d-flex justify-content-between align-items-start mb-3" style={{ fontSize: '0.85rem' }}>
                     <div className="d-flex gap-2 align-items-center" style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 'inherit', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                        <Image src={item.images?.[0]} alt="" fill sizes="36px" style={{ objectFit: 'cover' }} />
+                        <Image src={getPrimaryImageSrc(item.images, DEFAULT_PRODUCT_IMAGE)} alt="" fill sizes="36px" style={{ objectFit: 'cover' }} />
                       </div>
                       <div className="min-width-0">
                         <div style={{ color: 'var(--charcoal)', fontWeight: 500, fontSize: '0.82rem' }} className="text-truncate">

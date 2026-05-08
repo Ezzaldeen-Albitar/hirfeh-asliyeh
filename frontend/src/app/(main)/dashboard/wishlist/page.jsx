@@ -6,6 +6,7 @@ import { useGetWishlistQuery, useRemoveFromWishlistMutation } from '@/store/api/
 import { useCart } from '@/hooks/useCart';
 import { toast } from '@/lib/sweetalert';
 import StarRating from '@/components/common/StarRating';
+import { getPrimaryImageSrc } from '@/lib/imageUtils';
 
 function WishlistPage() {
   const { data, isLoading } = useGetWishlistQuery();
@@ -62,7 +63,7 @@ function WishlistPage() {
                   <div className="ha-card overflow-hidden h-100">
                     <Link href={`/products/${p._id}`} className="text-decoration-none">
                       <div style={{height:220,overflow:'hidden',position:'relative'}}>
-                        <Image src={p.images?.[0]} alt={p.name} className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover",transition:'transform .35s'}}
+                        <Image src={getPrimaryImageSrc(p.images)} alt={p.name} className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover",transition:'transform .35s'}}
                           onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'}
                           onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
                         <button

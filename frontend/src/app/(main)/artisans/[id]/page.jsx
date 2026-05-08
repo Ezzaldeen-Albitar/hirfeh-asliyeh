@@ -8,6 +8,7 @@ import ProductCard from '@/components/products/ProductCard';
 import BadgeDisplay from '@/components/artisans/BadgeDisplay';
 import StarRating from '@/components/common/StarRating';
 import MapView from '@/components/common/MapView';
+import { DEFAULT_ARTISAN_AVATAR, DEFAULT_ARTISAN_COVER, getSafeImageSrc } from '@/lib/imageUtils';
 
 export default function ArtisanProfilePage() {
   const { id } = useParams();
@@ -48,7 +49,14 @@ export default function ArtisanProfilePage() {
     <div className="bg-cream">
       {/* Cover */}
       <div style={{position:'relative',height:320,overflow:'hidden'}}>
-        <Image src={artisan.coverImage || artisan.avatar} alt="cover" className="w-100 h-100" fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>
+        <Image
+          src={getSafeImageSrc(artisan.coverImage, getSafeImageSrc(artisan.avatar, DEFAULT_ARTISAN_COVER))}
+          alt="cover"
+          className="w-100 h-100"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          style={{objectFit:"cover"}}
+        />
         <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(44,37,32,.8) 0%,rgba(44,37,32,.2) 60%,transparent 100%)'}}/>
         {artisan.isVerified && (
           <div className="position-absolute" style={{top:20,right:20}}>
@@ -61,7 +69,15 @@ export default function ArtisanProfilePage() {
         {/* Profile card */}
         <div className="ha-card p-4 mb-4">
           <div className="d-flex flex-column flex-md-row gap-4 align-items-start align-items-md-center">
-            <Image src={artisan.avatar} alt={artisan.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{objectFit:"cover"}}/>
+            <div style={{width:100,height:100,borderRadius:'50%',overflow:'hidden',position:'relative',flexShrink:0,marginTop:-40,border:'4px solid #fff'}}>
+              <Image
+                src={getSafeImageSrc(artisan.avatar, DEFAULT_ARTISAN_AVATAR)}
+                alt={artisan.name}
+                fill
+                sizes="100px"
+                style={{objectFit:"cover"}}
+              />
+            </div>
             <div className="flex-grow-1">
               <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
