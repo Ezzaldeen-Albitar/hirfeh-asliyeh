@@ -6,7 +6,6 @@ export const adminApi = baseApi.injectEndpoints({
     // Get dashboard statistics
     getAdminStats: builder.query({
       query: () => '/admin/stats',
-      // Transforms the response to match expected format
       transformResponse: (response) => ({
         data: response.stats,
         revenueChart: response.salesLast30Days,
@@ -79,6 +78,7 @@ export const adminApi = baseApi.injectEndpoints({
     }),
 
     // Approve artisan (verify)
+    // Note: Ensure backend has PUT /api/admin/artisans/:id/verify
     approveArtisan: builder.mutation({
       query: (id) => ({ url: `/admin/artisans/${id}/verify`, method: 'PUT' }),
       invalidatesTags: ['Artisans'],
