@@ -4,6 +4,7 @@ import * as paymentController from '../controllers/payment.controller.js';
 
 const router = Router();
 router.post('/create-intent', verifyToken, paymentController.createPaymentIntent);
+router.post('/confirm-intent', verifyToken, paymentController.confirmPaymentIntent);
 router.post('/webhook', paymentController.stripeWebhook);
 
 export default router;

@@ -14,21 +14,11 @@ import RevenueChart from '@/components/dashboard/RevenueChart';
 import OrdersTable from '@/components/dashboard/OrdersTable';
 import CustomizationChat from '@/components/dashboard/CustomizationChat';
 import ImageUpload from '@/components/common/ImageUpload';
+import { GOVERNORATE_OPTIONS, PRODUCT_CATEGORY_OPTIONS } from '@/lib/productFilters';
 
 const TABS   = ['الرئيسية','المنتجات','الطلبات','التخصيصات','الإعدادات'];
-const CRAFTS = ['السيراميك','النسيج','الفسيفساء','التطريز','الفخار','المجوهرات','الخشب','الزجاج'];
-const GOVS   = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','الطفيلة','معان','العقبة'];
-
-const CATEGORY_MAP = {
-  'السيراميك': 'فخار وخزف',
-  'النسيج': 'تطريز ونسيج',
-  'الفسيفساء': 'فسيفساء',
-  'التطريز': 'تطريز ونسيج',
-  'الفخار': 'فخار وخزف',
-  'المجوهرات': 'مجوهرات يدوية',
-  'الخشب': 'نجارة وخشب',
-  'الزجاج': 'زجاج مزخرف',
-};
+const CRAFTS = PRODUCT_CATEGORY_OPTIONS.map(({ value }) => value);
+const GOVS   = GOVERNORATE_OPTIONS.map(({ value }) => value);
 
 const EMPTY_PRODUCT = { name:'', price:'', stock:'', description:'', craftType:'', governorate:'', image:null };
 
@@ -111,7 +101,7 @@ function ArtisanDashboard() {
     try {
       const title = pForm.name.trim();
       const description = pForm.description.trim();
-      const category = CATEGORY_MAP[pForm.craftType];
+      const category = pForm.craftType;
       const price = Number(pForm.price);
       const stock = Number(pForm.stock || 1);
 

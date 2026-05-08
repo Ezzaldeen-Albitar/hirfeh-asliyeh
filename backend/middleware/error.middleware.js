@@ -2,6 +2,11 @@ export function errorHandler(err, req, res, next) {
     if (process.env.NODE_ENV === 'development') {
         console.error('Error:', err);
     }
+    if (err.type === 'StripeAuthenticationError' || /Invalid API Key/i.test(err.message || '')) {
+        return res.status(500).json({
+            message: 'Stripe is not configured correctly. Check your API keys.',
+        });
+    }
     if (err.name === 'ValidationError') {
         const messages = Object.values(err.errors).map(e => e.message);
         return res.status(400).json({

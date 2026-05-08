@@ -1,12 +1,15 @@
 import { baseApi } from './baseApi';
+import { normalizeProductCategory } from '@/lib/productFilters';
 
 const normalizeWishlistProduct = (product) => {
   if (!product) return product;
+  const normalizedCategory = normalizeProductCategory(product.category ?? product.craftType ?? '');
   return {
     ...product,
     name: product.name ?? product.title ?? '',
     title: product.title ?? product.name ?? '',
-    craftType: product.craftType ?? product.category ?? '',
+    craftType: normalizedCategory,
+    category: normalizedCategory,
     artisan: product.artisan
       ? {
           ...product.artisan,

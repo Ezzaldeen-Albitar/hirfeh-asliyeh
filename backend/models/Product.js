@@ -30,6 +30,7 @@ const productSchema = new Schema(
       type: String,
       required: [true, 'Category is required'],
       enum: [
+        'السيراميك',
         'فخار وخزف',
         'تطريز ونسيج',
         'نجارة وخشب',

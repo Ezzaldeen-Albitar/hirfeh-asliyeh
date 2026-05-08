@@ -7,11 +7,24 @@ function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not set.");
   return new Stripe(process.env.STRIPE_SECRET_KEY);
 }
+
+async function finalizePaidOrder(orderId, paymentIntentId, io) {
+  await Order.findByIdAndUpdate(orderId, {
+    paymentStatus: 'paid',
+    paymentIntentId,
+  });
+  await confirmOrder(orderId, io);
+  return Order.findById(orderId);
+}
+
 export async function createPaymentIntent(req, res, next) {
   try {
     const { orderId } = req.body;
     const order = await Order.findOne({ _id: orderId, customer: req.user.userId });
     if (!order) throw createError(404, 'Order not found.');
+    if (order.paymentMethod !== 'stripe') {
+      throw createError(400, 'This order is not configured for card payment.');
+    }
     if (order.paymentStatus === 'paid') {
       throw createError(400, 'Order is already paid.');
     }
@@ -40,6 +53,46 @@ export async function createPaymentIntent(req, res, next) {
     next(err);
   }
 }
+
+export async function confirmPaymentIntent(req, res, next) {
+  try {
+    const { orderId } = req.body;
+    const order = await Order.findOne({ _id: orderId, customer: req.user.userId });
+    if (!order) throw createError(404, 'Order not found.');
+    if (order.paymentMethod !== 'stripe') {
+      throw createError(400, 'This order is not configured for card payment.');
+    }
+    if (!order.paymentIntentId) {
+      throw createError(400, 'No payment intent was created for this order yet.');
+    }
+
+    const paymentIntent = await getStripe().paymentIntents.retrieve(order.paymentIntentId);
+    if (paymentIntent.metadata?.orderId !== order._id.toString()) {
+      throw createError(400, 'Payment intent does not belong to this order.');
+    }
+
+    if (paymentIntent.status === 'succeeded') {
+      const paidOrder = await finalizePaidOrder(order._id, paymentIntent.id, req.app.get('io'));
+      return res.json({
+        message: 'Payment verified successfully.',
+        order: paidOrder,
+        paymentStatus: paymentIntent.status,
+      });
+    }
+
+    if (paymentIntent.status === 'processing') {
+      return res.status(202).json({
+        message: 'Payment is still processing.',
+        paymentStatus: paymentIntent.status,
+      });
+    }
+
+    throw createError(400, `Payment is not complete yet. Current status: ${paymentIntent.status}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function stripeWebhook(req, res) {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -60,11 +113,7 @@ export async function stripeWebhook(req, res) {
       const { orderId } = paymentIntent.metadata;
       if (orderId) {
         try {
-          await Order.findByIdAndUpdate(orderId, {
-            paymentStatus: 'paid',
-            paymentIntentId: paymentIntent.id,
-          });
-          await confirmOrder(orderId, io);
+          await finalizePaidOrder(orderId, paymentIntent.id, io);
           console.log(`Payment succeeded for order ${orderId}`);
         } catch (err) {
           console.error('Error processing successful payment:', err);

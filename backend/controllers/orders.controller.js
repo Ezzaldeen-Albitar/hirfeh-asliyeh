@@ -80,12 +80,14 @@ export async function createOrder(req, res, next) {
 export async function confirmOrder(orderId, io) {
   const order = await Order.findById(orderId).populate('customer', 'name email');
   if (!order) return;
+  if (order.status !== 'pending') return order;
   order.status = 'confirmed';
   if (order.paymentMethod === 'cash_on_delivery') {
     order.paymentStatus = 'pending';
   }
   await order.save();
   for (const item of order.items) {
+    const lineTotal = item.price * item.quantity;
     await Product.findOneAndUpdate(
       { _id: item.product, productType: 'ready-made' },
       {
@@ -93,7 +95,7 @@ export async function confirmOrder(orderId, io) {
       }
     );
     await ArtisanProfile.findByIdAndUpdate(item.artisan, {
-      $inc: { totalSales: item.quantity },
+      $inc: { totalSales: item.quantity, totalRevenue: lineTotal },
     });
   }
   await createAndEmitNotification(

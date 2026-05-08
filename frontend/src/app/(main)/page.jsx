@@ -102,7 +102,7 @@ export default function HomePage() {
           <div className="row g-3">
             {CRAFTS.map(c => (
               <div key={c.label} className="col-6 col-md-4 col-lg-2">
-                <Link href={`/products?craftType=${encodeURIComponent(c.q)}`} className="text-decoration-none">
+                <Link href={`/products?category=${encodeURIComponent(c.q)}`} className="text-decoration-none">
                   <div style={{ position: 'relative', height: 180, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'transform .3s' }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>

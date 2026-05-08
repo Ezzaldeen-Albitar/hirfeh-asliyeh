@@ -88,12 +88,12 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ 'items.artisan': 1, status: 1 });
 orderSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
-// توليد رقم الطلب قبل الحفظ
-orderSchema.pre('save', async function (next) {
+// توليد رقم الطلب قبل الـ validation حتى لا يسقط شرط required
+orderSchema.pre('validate', async function (next) {
   if (!this.orderNumber) {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const { randomBytes } = await import('crypto');
-    const suffix = randomBytes(3).toString('hex').toUpperCase(); 
+    const suffix = randomBytes(3).toString('hex').toUpperCase();
     this.orderNumber = `ORD-${dateStr}-${suffix}`;
   }
   next();
@@ -102,6 +102,7 @@ orderSchema.pre('save', async function (next) {
 // تحديث سجل الحالات عند تغيير الحالة
 orderSchema.pre('save', async function (next) {
   if (this.isModified('status')) {
+    this.statusHistory ||= [];
     this.statusHistory.push({ status: this.status });
   }
   next();

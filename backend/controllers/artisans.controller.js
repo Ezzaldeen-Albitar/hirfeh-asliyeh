@@ -49,6 +49,17 @@ function buildEmptyDashboard() {
   };
 }
 
+function buildArtisanRevenueMatch(artisanId, extraMatch = {}) {
+  return {
+    ...extraMatch,
+    'items.artisan': artisanId,
+    $or: [
+      { paymentStatus: 'paid' },
+      { paymentMethod: 'cash_on_delivery', status: { $in: ['confirmed', 'in-progress', 'shipped', 'delivered'] } },
+    ],
+  };
+}
+
 export async function getArtisans(req, res, next) {
   try {
     const { region, verified, specialties, page = 1, limit = 12, sort = 'rating' } = req.query;
@@ -196,7 +207,7 @@ export async function getCurrentArtisanDashboard(req, res, next) {
       ]),
       Order.countDocuments({ 'items.artisan': artisan._id }),
       Order.aggregate([
-        { $match: { paymentStatus: 'paid', 'items.artisan': artisan._id } },
+        { $match: buildArtisanRevenueMatch(artisan._id) },
         { $unwind: '$items' },
         { $match: { 'items.artisan': artisan._id } },
         {
@@ -207,7 +218,7 @@ export async function getCurrentArtisanDashboard(req, res, next) {
         },
       ]),
       Order.aggregate([
-        { $match: { paymentStatus: 'paid', createdAt: { $gte: sixMonthsAgo }, 'items.artisan': artisan._id } },
+        { $match: buildArtisanRevenueMatch(artisan._id, { createdAt: { $gte: sixMonthsAgo } }) },
         { $unwind: '$items' },
         { $match: { 'items.artisan': artisan._id } },
         {
@@ -290,7 +301,7 @@ export async function getArtisanStats(req, res, next) {
         .populate('customer', 'name')
         .lean(),
       Order.aggregate([
-        { $match: { 'items.artisan': artisan._id, paymentStatus: 'paid' } },
+        { $match: buildArtisanRevenueMatch(artisan._id) },
         { $unwind: '$items' },
         { $match: { 'items.artisan': artisan._id } },
         { $group: { _id: null, total: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },

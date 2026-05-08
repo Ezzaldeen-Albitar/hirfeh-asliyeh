@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import { normalizeProductCategory, normalizeRegion } from '@/lib/productFilters';
 
 const normalizeArtisan = (artisan) => {
   if (!artisan) return artisan;
@@ -13,13 +14,14 @@ const normalizeArtisan = (artisan) => {
 
 const normalizeProduct = (product) => {
   if (!product) return product;
+  const normalizedCategory = normalizeProductCategory(product.category ?? product.craftType ?? '');
   return {
     ...product,
     name: product.name ?? product.title ?? '',
     title: product.title ?? product.name ?? '',
-    craftType: product.craftType ?? product.category ?? '',
-    category: product.category ?? product.craftType ?? '',
-    governorate: product.governorate ?? product.artisan?.region ?? '',
+    craftType: normalizedCategory,
+    category: normalizedCategory,
+    governorate: normalizeRegion(product.governorate ?? product.artisan?.region ?? ''),
     artisan: normalizeArtisan(product.artisan),
   };
 };
