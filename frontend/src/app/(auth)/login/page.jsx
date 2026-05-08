@@ -30,7 +30,7 @@ export default function LoginPage() {
     } catch (err) {
       // إذا السيرفر كان نايماً وقاعد يصحى — baseApi.js بيعيد المحاولة تلقائياً
       // نعرض رسالة للمستخدم إنه "انتظر شوي"
-      if (err?.status === 403 || err?.status === 502 || err?.status === 503) {
+      if (err?.status === 502 || err?.status === 503 || err?.status === 504) {
         setWaking(true);
         toast.info('السيرفر يصحى من السبات... أعد المحاولة بعد ثوانٍ 🔄');
         return;
