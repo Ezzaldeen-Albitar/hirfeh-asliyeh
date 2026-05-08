@@ -1,88 +1,98 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
-import { useVerifyOtpMutation, useResendOtpMutation } from '@/store/api/authApi';
-import { setCredentials } from '@/store/slices/authSlice';
-import { toast } from '@/lib/sweetalert';
 import OTPInput from '@/components/auth/OTPInput';
+import { toast } from '@/lib/sweetalert';
+import { useResendOtpMutation, useVerifyOtpMutation } from '@/store/api/authApi';
+import { setCredentials } from '@/store/slices/authSlice';
 
 function VerifyOtpForm() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const dispatch     = useDispatch();
-  const email        = searchParams.get('email') || '';
-  const purpose      = searchParams.get('purpose') || 'verify';
-
-  const [verifyOtp,  { isLoading }]             = useVerifyOtpMutation();
-  const [resendOtp,  { isLoading: resendLoading }] = useResendOtpMutation();
-  const [otp,        setOtp]                    = useState('');
-  const [otpKey,     setOtpKey]                 = useState(0);
-  const [cooldown,   setCooldown]               = useState(0);
+  const dispatch = useDispatch();
+  const email = searchParams.get('email') || '';
+  const purpose = searchParams.get('purpose') || 'verify';
+  const [verifyOtp, { isLoading }] = useVerifyOtpMutation();
+  const [resendOtp, { isLoading: resendLoading }] = useResendOtpMutation();
+  const [otp, setOtp] = useState('');
+  const [otpKey, setOtpKey] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    if (cooldown <= 0) return undefined;
+    const timer = setInterval(() => setCooldown((current) => current - 1), 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (otp.length < 6) return toast.error('يرجى إدخال الرمز كاملاً');
-    if (!email)         return toast.error('لم يتم تحديد البريد الإلكتروني');
+    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
+
     try {
-      const res = await verifyOtp({ email, otp, purpose }).unwrap();
+      const result = await verifyOtp({ email, otp, purpose }).unwrap();
+
       if (purpose === 'reset') {
-        toast.success('تم التحقق! أدخل كلمة المرور الجديدة');
+        toast.success('تم التحقق. يمكنك الآن تعيين كلمة مرور جديدة.');
         router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-      } else {
-        if (res.token) dispatch(setCredentials(res));
-        toast.success('تم التحقق بنجاح! ✓');
-        router.push('/');
+        return;
       }
-    } catch (err) {
-      const remaining = err?.data?.remainingAttempts;
+
+      if (result.token) dispatch(setCredentials(result));
+      toast.success('تم التحقق من البريد الإلكتروني بنجاح');
+      router.push('/');
+    } catch (error) {
+      const remaining = error?.data?.remainingAttempts;
       if (remaining !== undefined) {
-        toast.error(`الرمز غير صحيح — تبقّى ${remaining} محاولة`);
-      } else {
-        toast.error(err?.data?.message || 'الرمز غير صحيح أو منتهي الصلاحية');
+        toast.error(`الرمز غير صحيح. تبقّى ${remaining} محاولة`);
+        return;
       }
+      toast.error(error?.data?.message || 'الرمز غير صحيح أو منتهي الصلاحية');
     }
   };
 
   const handleResend = async () => {
-    if (!email)       return toast.error('لم يتم تحديد البريد الإلكتروني');
+    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
     if (cooldown > 0) return;
+
     try {
-      const res = await resendOtp({ email, purpose }).unwrap();
-      
-      // ✅ Emergency fallback: If mail fails, the server now returns devOtp
-      if (res.devOtp) {
-        console.log('--- EMERGENCY OTP ---');
-        console.log('Your code is:', res.devOtp);
-        console.log('----------------------');
-        toast.info('وصل الرمز! (راجع الـ Console في المتصفح إذا لم يصلك إيميل)');
+      const result = await resendOtp({ email, purpose }).unwrap();
+
+      if (result.devOtp && process.env.NODE_ENV !== 'production') {
+        console.info('[DEV OTP]', result.devOtp);
+        toast.info('تم إنشاء رمز تجريبي للتطوير. راجع Console المتصفح.');
+      } else if (result.message?.toLowerCase().includes('failed')) {
+        toast.info(result.message);
       } else {
-        toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني 📧');
+        toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني');
       }
 
       setCooldown(120);
       setOtp('');
-      setOtpKey(k => k + 1);
-    } catch (err) {
-      const retry = err?.data?.retryAfterSeconds;
+      setOtpKey((current) => current + 1);
+    } catch (error) {
+      const retry = error?.data?.retryAfterSeconds;
       if (retry) {
         setCooldown(retry);
         toast.info(`يرجى الانتظار ${retry} ثانية قبل الإعادة`);
-      } else {
-        toast.error(err?.data?.message || 'تعذر إرسال الرمز');
+        return;
       }
+      toast.error(error?.data?.message || 'تعذر إرسال الرمز');
     }
   };
 
   return (
     <>
-      <h2 style={{ fontFamily: 'Amiri,serif', fontSize: '1.7rem', color: 'var(--charcoal)', marginBottom: 8 }}>
+      <h2
+        style={{
+          fontFamily: 'Amiri,serif',
+          fontSize: '1.7rem',
+          color: 'var(--charcoal)',
+          marginBottom: 8,
+        }}
+      >
         {purpose === 'reset' ? 'رمز استعادة كلمة المرور' : 'التحقق من البريد الإلكتروني'}
       </h2>
 
@@ -90,12 +100,19 @@ function VerifyOtpForm() {
         أرسلنا رمز التحقق المكوّن من 6 أرقام إلى
       </p>
 
-      <div style={{
-        background: 'rgba(122,28,46,.06)', border: '1px solid rgba(122,28,46,.15)',
-        borderRadius: 8, padding: '8px 16px', marginBottom: 28,
-        fontWeight: 600, color: 'var(--burgundy)', fontSize: '0.92rem',
-        wordBreak: 'break-all',
-      }}>
+      <div
+        style={{
+          background: 'rgba(122,28,46,.06)',
+          border: '1px solid rgba(122,28,46,.15)',
+          borderRadius: 8,
+          padding: '8px 16px',
+          marginBottom: 28,
+          fontWeight: 600,
+          color: 'var(--burgundy)',
+          fontSize: '0.92rem',
+          wordBreak: 'break-all',
+        }}
+      >
         <i className="bi bi-envelope me-2" />
         {email || 'بريدك الإلكتروني'}
       </div>
@@ -122,7 +139,11 @@ function VerifyOtpForm() {
           disabled={resendLoading || cooldown > 0}
           suppressHydrationWarning
           className="btn btn-link w-100"
-          style={{ color: cooldown > 0 ? 'var(--stone)' : 'var(--burgundy)', fontSize: '0.85rem', textDecoration: 'none' }}
+          style={{
+            color: cooldown > 0 ? 'var(--stone)' : 'var(--burgundy)',
+            fontSize: '0.85rem',
+            textDecoration: 'none',
+          }}
         >
           {resendLoading ? (
             <span className="spinner-border spinner-border-sm me-1" />
@@ -140,7 +161,7 @@ function VerifyOtpForm() {
         </button>
 
         <p className="mt-3 mb-0" style={{ fontSize: '0.82rem', color: 'var(--warm-gray)' }}>
-          تحقق من مجلد الـ Spam إذا لم يصلك الرمز
+          تحقّق من مجلد الرسائل غير المرغوبة إذا لم يصلك الرمز
         </p>
       </form>
     </>
@@ -149,17 +170,32 @@ function VerifyOtpForm() {
 
 export default function VerifyOtpPage() {
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center p-3"
-      style={{ background: 'var(--parchment)' }}>
+    <div
+      className="min-vh-100 d-flex align-items-center justify-content-center p-3"
+      style={{ background: 'var(--parchment)' }}
+    >
       <div className="ha-card p-4 p-md-5 text-center" style={{ width: '100%', maxWidth: 440 }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'rgba(122,28,46,.1)', margin: '0 auto 20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            background: 'rgba(122,28,46,.1)',
+            margin: '0 auto 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <i className="bi bi-envelope-check fs-2 text-burgundy" />
         </div>
-        <Suspense fallback={<div className="text-center p-4"><span className="spinner-border text-primary"></span></div>}>
+        <Suspense
+          fallback={
+            <div className="text-center p-4">
+              <span className="spinner-border text-primary" />
+            </div>
+          }
+        >
           <VerifyOtpForm />
         </Suspense>
       </div>

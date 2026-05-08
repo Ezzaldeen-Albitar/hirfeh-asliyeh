@@ -57,12 +57,14 @@ export default function ProductDetailPage() {
   const handleReview = async (e) => {
     e.preventDefault();
     if (!rating) return toast.error('يرجى اختيار تقييم');
+    if (!comment.trim()) return toast.error('يرجى كتابة تعليقك');
+    if (comment.trim().length < 3) return toast.error('يرجى كتابة 3 أحرف على الأقل في التقييم');
     try {
       await createReview({ productId: id, rating, comment }).unwrap();
       toast.success('تم إضافة تقييمك بنجاح ✓');
       setRating(0); setComment('');
     } catch (err) {
-      toast.error(err?.data?.message || 'تعذر إضافة التقييم');
+      toast.error(err?.data?.errors?.[0] || err?.data?.message || 'تعذر إضافة التقييم');
     }
   };
 

@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -60,12 +61,12 @@ export default function Navbar() {
 
             {/* Brand */}
             <Link href="/" className="d-flex align-items-center gap-2 text-decoration-none">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/professional_minimalist_logo_for_hirfeh_asliyeh_1.png"
                 alt="Logo"
                 width={44}
                 height={50}
+                priority
                 style={{ background: 'transparent', display: 'block' }}
               />
               <div>

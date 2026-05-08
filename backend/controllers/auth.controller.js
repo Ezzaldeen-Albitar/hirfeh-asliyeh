@@ -12,6 +12,19 @@ import {
 import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailer.service.js';
 import { signTokenAndSetCookie, clearAuthCookie } from '../utils/jwt.js';
 
+const canExposeDevOtp = process.env.NODE_ENV !== 'production';
+
+function parseGoogleClientIds() {
+  return [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_IDS,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
   try {
     if (purpose === 'reset') {
@@ -27,8 +40,10 @@ async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
     // This is much better than a 500 error that breaks registration.
     return {
       delivered: false,
-      devOtp: otp, // Return the OTP so frontend can potentially show it or log it
-      message: 'Email delivery failed. Please check your connection or use the code provided if available.',
+      ...(canExposeDevOtp ? { devOtp: otp } : {}),
+      message: canExposeDevOtp
+        ? 'Email delivery failed. Please check your connection or use the development code if available.'
+        : 'Email delivery failed. Please try again later.',
     };
   }
 }
@@ -263,8 +278,12 @@ export async function resetPassword(req, res, next) {
 export async function googleAuth(req, res, next) {
   try {
     const { idToken } = req.body;
+    const googleClientIds = parseGoogleClientIds();
     if (!idToken) {
       return res.status(400).json({ message: 'idToken is required.' });
+    }
+    if (!googleClientIds.length) {
+      return res.status(500).json({ message: 'Google sign-in is not configured yet.' });
     }
 
     // Verify the token with Google's public endpoint
@@ -277,10 +296,15 @@ export async function googleAuth(req, res, next) {
     const payload = await googleRes.json();
 
     // Confirm the token was issued for our app
-    const validAudiences = [
-      process.env.GOOGLE_CLIENT_ID,
-    ].filter(Boolean);
+    const validAudiences = googleClientIds;
     if (validAudiences.length && !validAudiences.includes(payload.aud)) {
+      if (process.env.NODE_ENV !== 'production') {
+        const mask = (value) => (value && value.length > 20 ? `${value.slice(0, 8)}...${value.slice(-12)}` : value);
+        console.warn('[Google Auth] audience mismatch', {
+          receivedAud: mask(payload.aud),
+          allowedAudiences: validAudiences.map(mask),
+        });
+      }
       return res.status(401).json({ message: 'Google token audience mismatch.' });
     }
 

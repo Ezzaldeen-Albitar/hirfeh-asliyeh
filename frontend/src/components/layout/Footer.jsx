@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 // Server Component — لا يحتاج 'use client' لأنه ما عنده state أو event handlers
@@ -15,8 +16,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-lg-4">
             <div className="d-flex align-items-center gap-2 mb-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/professional_minimalist_logo_for_hirfeh_asliyeh_1.png"
                 alt="Logo"
                 width={44}

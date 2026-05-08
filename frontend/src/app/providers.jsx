@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Provider }  from 'react-redux';
 import { store }     from '@/store';
 import { hydrateAuth } from '@/store/slices/authSlice';
@@ -40,10 +41,21 @@ function HydrateStore() {
 }
 
 export default function Providers({ children }) {
-  return (
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  const content = (
     <Provider store={store}>
       <HydrateStore />
       {children}
     </Provider>
+  );
+
+  if (!googleClientId) {
+    return content;
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      {content}
+    </GoogleOAuthProvider>
   );
 }

@@ -7,12 +7,44 @@ import { recalculateProductRating, recalculateArtisanRating } from '../utils/cal
 
 export async function createReview(req, res, next) {
   try {
-    const { productId, orderId, rating, title, body, images, subRatings } = req.body;
-    const order = await Order.findOne({
-      _id: orderId,
-      customer: req.user.userId,
-      status: 'delivered',
-    });
+    const { productId, orderId, rating, title, body, comment, images, subRatings } = req.body;
+    const reviewBody = typeof body === 'string' && body.trim()
+      ? body.trim()
+      : typeof comment === 'string'
+      ? comment.trim()
+      : '';
+
+    let order = null;
+    if (orderId) {
+      order = await Order.findOne({
+        _id: orderId,
+        customer: req.user.userId,
+        status: 'delivered',
+      });
+    } else {
+      // Support the current frontend flow which only knows the product id.
+      const deliveredOrders = await Order.find({
+        customer: req.user.userId,
+        status: 'delivered',
+        'items.product': productId,
+      })
+        .sort({ createdAt: -1 })
+        .select('_id items createdAt');
+
+      if (deliveredOrders.length > 0) {
+        const existingReviews = await Review.find({
+          reviewer: req.user.userId,
+          product: productId,
+          order: { $in: deliveredOrders.map((item) => item._id) },
+        })
+          .select('order')
+          .lean();
+
+        const reviewedOrderIds = new Set(existingReviews.map((item) => item.order.toString()));
+        order = deliveredOrders.find((item) => !reviewedOrderIds.has(item._id.toString())) || deliveredOrders[0];
+      }
+    }
+
     if (!order) {
       throw createError(400, 'You can only review products from delivered orders.');
     }
@@ -23,7 +55,7 @@ export async function createReview(req, res, next) {
     const existingReview = await Review.findOne({
       reviewer: req.user.userId,
       product: productId,
-      order: orderId,
+      order: order._id,
     });
     if (existingReview) {
       throw createError(409, 'You have already reviewed this product for this order.');
@@ -32,10 +64,10 @@ export async function createReview(req, res, next) {
       reviewer: req.user.userId,
       product: productId,
       artisan: orderItem.artisan,
-      order: orderId,
+      order: order._id,
       rating,
       title,
-      body,
+      body: reviewBody,
       images: images || [],
       subRatings,
       isVerifiedPurchase: true,

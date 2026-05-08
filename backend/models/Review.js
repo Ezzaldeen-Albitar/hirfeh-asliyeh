@@ -32,7 +32,7 @@ const reviewSchema = new Schema(
     body: {
       type: String,
       required: [true, 'Review body is required'],
-      minlength: [10, 'Review must be at least 10 characters'],
+      minlength: [3, 'Review must be at least 3 characters'],
       maxlength: [1000, 'Review must not exceed 1000 characters'],
     },
     images: {
