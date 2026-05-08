@@ -11,7 +11,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" data-scroll-behavior="smooth">
       <body>
         <Providers>
           <BootstrapClient />

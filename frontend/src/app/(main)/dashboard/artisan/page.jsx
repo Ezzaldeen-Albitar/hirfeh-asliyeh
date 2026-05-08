@@ -2,9 +2,10 @@
 import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import { useState } from 'react';
+import Cookies from 'js-cookie';
 import { useGetArtisanDashboardQuery, useUpdateArtisanProfileMutation } from '@/store/api/artisansApi';
 import { useGetArtisanOrdersQuery, useUpdateOrderStatusMutation } from '@/store/api/ordersApi';
-import { useGetProductsQuery, useCreateProductMutation, useUpdateProductMutation, useDeleteProductMutation } from '@/store/api/productsApi';
+import { useGetMyProductsQuery, useCreateProductMutation, useUpdateProductMutation, useDeleteProductMutation } from '@/store/api/productsApi';
 import { useGetCustomizationsQuery, useSendMessageMutation, useUpdateCustomizationStatusMutation } from '@/store/api/customizationsApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast, confirm } from '@/lib/sweetalert';
@@ -17,6 +18,17 @@ import ImageUpload from '@/components/common/ImageUpload';
 const TABS   = ['الرئيسية','المنتجات','الطلبات','التخصيصات','الإعدادات'];
 const CRAFTS = ['السيراميك','النسيج','الفسيفساء','التطريز','الفخار','المجوهرات','الخشب','الزجاج'];
 const GOVS   = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','الطفيلة','معان','العقبة'];
+
+const CATEGORY_MAP = {
+  'السيراميك': 'فخار وخزف',
+  'النسيج': 'تطريز ونسيج',
+  'الفسيفساء': 'فسيفساء',
+  'التطريز': 'تطريز ونسيج',
+  'الفخار': 'فخار وخزف',
+  'المجوهرات': 'مجوهرات يدوية',
+  'الخشب': 'نجارة وخشب',
+  'الزجاج': 'زجاج مزخرف',
+};
 
 const EMPTY_PRODUCT = { name:'', price:'', stock:'', description:'', craftType:'', governorate:'', image:null };
 
@@ -34,7 +46,7 @@ function ArtisanDashboard() {
 
   const { data: dash }  = useGetArtisanDashboardQuery();
   const { data: ordersData, isLoading: ordersLoading } = useGetArtisanOrdersQuery({});
-  const { data: productsData, isLoading: productsLoading } = useGetProductsQuery({ artisan:'me', limit:50 });
+  const { data: productsData, isLoading: productsLoading } = useGetMyProductsQuery({ limit:50 });
   const { data: customsData }  = useGetCustomizationsQuery();
 
   const [updateStatus]     = useUpdateOrderStatusMutation();
@@ -57,6 +69,25 @@ function ArtisanDashboard() {
   const openAddForm  = () => { setEditProduct(null); setPForm(EMPTY_PRODUCT); setShowForm(true); setTab(1); };
   const openEditForm = (p)  => { setEditProduct(p);  setPForm({ name:p.name, price:p.price, stock:p.stock||'', description:p.description||'', craftType:p.craftType||'', governorate:p.governorate||'', image:null }); setShowForm(true); };
 
+  const uploadProductImage = async (file) => {
+    const token = Cookies.get('token');
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('folder', 'products');
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+      credentials: 'include',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message || 'تعذر رفع الصورة');
+    }
+    return data.url;
+  };
+
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     const fd = new FormData();
@@ -72,6 +103,54 @@ function ArtisanDashboard() {
       setShowForm(false); setPForm(EMPTY_PRODUCT); setEditProduct(null);
     } catch (err) {
       toast.error(err?.data?.message || 'تعذر حفظ المنتج');
+    }
+  };
+
+  const handleSaveProductFixed = async (e) => {
+    e.preventDefault();
+    try {
+      const title = pForm.name.trim();
+      const description = pForm.description.trim();
+      const category = CATEGORY_MAP[pForm.craftType];
+      const price = Number(pForm.price);
+      const stock = Number(pForm.stock || 1);
+
+      if (title.length < 5) return toast.error('اسم المنتج يجب أن يكون 5 أحرف على الأقل');
+      if (!description) return toast.error('أضف وصفًا للمنتج');
+      if (!category) return toast.error('اختر نوع الحرفة');
+      if (!Number.isFinite(price) || price <= 0) return toast.error('أدخل سعرًا صحيحًا');
+
+      let images = editProduct?.images || [];
+      if (pForm.image instanceof File) {
+        const uploadedUrl = await uploadProductImage(pForm.image);
+        images = [uploadedUrl];
+      }
+      if (!images.length) return toast.error('أضف صورة للمنتج');
+
+      const body = {
+        title,
+        description,
+        price,
+        category,
+        productType: 'ready-made',
+        stock: Number.isFinite(stock) ? stock : 1,
+        images,
+        thumbnailIndex: 0,
+      };
+
+      if (editProduct) {
+        await updateProduct({ id: editProduct._id, body }).unwrap();
+        toast.success('تم تحديث المنتج');
+      } else {
+        await createProduct(body).unwrap();
+        toast.success('تمت إضافة المنتج بنجاح');
+      }
+
+      setShowForm(false);
+      setPForm(EMPTY_PRODUCT);
+      setEditProduct(null);
+    } catch (err) {
+      toast.error(err?.data?.message || err?.message || 'تعذر حفظ المنتج');
     }
   };
 
@@ -166,7 +245,7 @@ function ArtisanDashboard() {
                       <i className="bi bi-inbox d-block mb-2 fs-3"/>لا توجد طلبات بعد
                     </div>
                   ) : orders.slice(0,6).map(o=>{
-                    const cl = {pending:'#F59E0B',processing:'#3B82F6',delivered:'#22C55E',cancelled:'#EF4444'}[o.status]||'#94A3B8';
+                    const cl = {pending:'#F59E0B',confirmed:'#0F766E','in-progress':'#3B82F6',processing:'#3B82F6',shipped:'#8B5CF6',delivered:'#22C55E',cancelled:'#EF4444'}[o.status]||'#94A3B8';
                     return (
                       <div key={o._id} className="d-flex justify-content-between align-items-center py-2"
                         style={{borderBottom:'1px solid var(--gold-pale)',fontSize:'0.83rem'}}>
@@ -197,13 +276,13 @@ function ArtisanDashboard() {
                     <i className="bi bi-x-lg"/>
                   </button>
                 </div>
-                <form onSubmit={handleSaveProduct}>
+                <form onSubmit={handleSaveProductFixed}>
                   <div className="row g-3">
                     <div className="col-md-8">
                       <div className="row g-3">
                         <div className="col-md-8">
                           <label className="form-label" style={{fontSize:'0.85rem',fontWeight:500}}>اسم المنتج</label>
-                          <input type="text" className="form-control" value={pForm.name} onChange={setPF('name')} required style={{borderRadius:8,borderColor:'var(--stone)'}}/>
+                          <input type="text" className="form-control" value={pForm.name} onChange={setPF('name')} required minLength={5} style={{borderRadius:8,borderColor:'var(--stone)'}}/>
                         </div>
                         <div className="col-md-4">
                           <label className="form-label" style={{fontSize:'0.85rem',fontWeight:500}}>السعر (د.أ)</label>
@@ -229,7 +308,7 @@ function ArtisanDashboard() {
                         </div>
                         <div className="col-12">
                           <label className="form-label" style={{fontSize:'0.85rem',fontWeight:500}}>الوصف</label>
-                          <textarea className="form-control" rows={3} value={pForm.description} onChange={setPF('description')} style={{borderRadius:8,borderColor:'var(--stone)',resize:'none'}}/>
+                          <textarea className="form-control" rows={3} value={pForm.description} onChange={setPF('description')} required style={{borderRadius:8,borderColor:'var(--stone)',resize:'none'}}/>
                         </div>
                       </div>
                     </div>

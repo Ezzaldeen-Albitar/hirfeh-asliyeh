@@ -3,21 +3,24 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateOrderMutation } from '@/store/api/ordersApi';
 import { toast } from '@/lib/sweetalert';
 
 const STEPS = ['السلة', 'الشحن', 'الدفع', 'التأكيد'];
-const GOVS  = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','الطفيلة','معان','العقبة','عجلون'];
+const GOVS  = ['عمان','الزرقاء','إربد','مأدبا','جرش','عجلون','البلقاء','الكرك','الطفيلة','معان','العقبة'];
 
 function CheckoutPage() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const { items, total, removeItem, updateQty, clearCart } = useCart();
   const { isAuth, user } = useAuth();
   const [createOrder, { isLoading }] = useCreateOrderMutation();
-  const [step, setStep]   = useState(0);
+  const [step, setStep]   = useState(() => {
+    const requestedStep = Number(searchParams.get('step') || 0);
+    return Number.isInteger(requestedStep) && requestedStep >= 0 && requestedStep <= 3 ? requestedStep : 0;
+  });
   const [orderId, setOrderId] = useState(null);
   const [shipping, setShipping] = useState({
     name:        user?.name   || '',
@@ -33,13 +36,23 @@ function CheckoutPage() {
   const handleOrder = async () => {
     try {
       const res = await createOrder({
-        items: items.map(i => ({ product: i._id, qty: i.qty, price: i.price })),
-        shipping,
-        paymentMethod: payMethod,
-        total,
+        items: items.map(i => ({
+          productId: i._id || i.id || i.product?._id || i.productId,
+          quantity: i.qty || i.quantity || 1,
+        })),
+        shippingAddress: {
+          recipientName: shipping.name,
+          phone: shipping.phone,
+          city: shipping.governorate,
+          governorate: shipping.governorate,
+          street: shipping.address,
+          notes: shipping.notes,
+        },
+        paymentMethod: payMethod === 'cash' ? 'cash_on_delivery' : payMethod === 'card' ? 'stripe' : 'cliq',
+        notes: shipping.notes,
       }).unwrap();
       clearCart();
-      setOrderId(res?.data?._id || res?._id || 'N/A');
+      setOrderId(res?.order?._id || res?.data?._id || res?._id || 'N/A');
       toast.success('تم تقديم طلبك بنجاح! 🎉');
       setStep(3);
     } catch (err) {

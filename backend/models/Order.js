@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 const { Schema, model } = mongoose;
+
 const orderItemSchema = new Schema(
   {
     product: { type: Schema.Types.ObjectId, ref: 'Product' },
@@ -12,6 +13,7 @@ const orderItemSchema = new Schema(
   },
   { _id: true }
 );
+
 const statusHistorySchema = new Schema(
   {
     status: String,
@@ -21,6 +23,7 @@ const statusHistorySchema = new Schema(
   },
   { _id: false }
 );
+
 const orderSchema = new Schema(
   {
     orderNumber: {
@@ -85,18 +88,22 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ 'items.artisan': 1, status: 1 });
 orderSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
+// توليد رقم الطلب قبل الحفظ
 orderSchema.pre('save', async function (next) {
   if (!this.orderNumber) {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    // Use crypto-random hex suffix to eliminate collision risk
     const { randomBytes } = await import('crypto');
-    const suffix = randomBytes(3).toString('hex').toUpperCase(); // 6 hex chars
+    const suffix = randomBytes(3).toString('hex').toUpperCase(); 
     this.orderNumber = `ORD-${dateStr}-${suffix}`;
   }
+  next();
+});
+
+// تحديث سجل الحالات عند تغيير الحالة
+orderSchema.pre('save', async function (next) {
   if (this.isModified('status')) {
     this.statusHistory.push({ status: this.status });
   }
-
   next();
 });
 

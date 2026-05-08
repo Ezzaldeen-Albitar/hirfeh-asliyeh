@@ -6,7 +6,9 @@ const router = Router();
 
 // ✅ Static routes MUST come before dynamic /:id routes
 router.get('/featured', artisansController.getFeaturedArtisans);
+router.get('/dashboard', verifyToken, requireRole('artisan'), artisansController.getCurrentArtisanDashboard);
 router.get('/', artisansController.getArtisans);
+router.put('/profile', verifyToken, requireRole('artisan'), artisansController.updateCurrentArtisanProfile);
 router.get('/:id', artisansController.getArtisan);
 router.post('/apply', verifyToken, artisansController.applyAsArtisan);
 router.put('/:id', verifyToken, artisansController.updateArtisan);

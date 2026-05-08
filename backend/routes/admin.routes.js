@@ -6,7 +6,6 @@ import { getOrders } from '../controllers/orders.controller.js';
 const router = Router();
 router.use(verifyToken, requireRole('admin'));
 
-// Stats — support both /stats (frontend) and /dashboard (legacy)
 router.get('/stats', adminController.getDashboardStats);
 router.get('/dashboard', adminController.getDashboardStats);
 
@@ -15,8 +14,10 @@ router.put('/users/:id/ban', adminController.toggleBanUser);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.delete('/users/:id', adminController.deleteUser);
 router.get('/artisans/pending', adminController.getPendingArtisans);
-router.put('/artisans/:id/verify', adminController.verifyArtisan);
+
+// التحقق من الحرفيين - تم اعتماد PATCH لتعديل الحالة
 router.patch('/artisans/:id/verify', adminController.verifyArtisan);
+
 router.get('/products', adminController.getAdminProducts);
 router.get('/orders', getOrders);
 router.get('/badges', adminController.getBadges);

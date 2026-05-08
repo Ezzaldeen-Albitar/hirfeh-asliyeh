@@ -1,14 +1,34 @@
 import { baseApi } from './baseApi';
 
+const normalizeArtisan = (artisan) => {
+  if (!artisan) return artisan;
+  return {
+    ...artisan,
+    name: artisan.name ?? artisan.user?.name ?? '',
+    avatar: artisan.avatar ?? artisan.user?.avatar ?? artisan.profileImage ?? '',
+    craftSpecialty: artisan.craftSpecialty ?? artisan.craftName ?? artisan.specialties?.[0] ?? '',
+    governorate: artisan.governorate ?? artisan.region ?? '',
+  };
+};
+
 export const artisansApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     getArtisans: builder.query({
       query: (params) => ({ url: '/artisans', params }),
+      transformResponse: (response) => ({
+        data: (response.artisans || []).map(normalizeArtisan),
+        total: response.pagination?.total || 0,
+        totalPages: response.pagination?.totalPages || 1,
+        pagination: response.pagination,
+      }),
       providesTags: ['Artisans'],
     }),
     getArtisan: builder.query({
       query: (id) => `/artisans/${id}`,
+      transformResponse: (response) => ({
+        data: normalizeArtisan(response.artisan),
+      }),
       providesTags: (r, e, id) => [{ type: 'Artisans', id }],
     }),
     getArtisanDashboard: builder.query({
@@ -21,6 +41,9 @@ export const artisansApi = baseApi.injectEndpoints({
     }),
     getFeaturedArtisans: builder.query({
       query: () => '/artisans/featured',
+      transformResponse: (response) => ({
+        data: (response.artisans || []).map(normalizeArtisan),
+      }),
       providesTags: ['Artisans'],
     }),
   }),
