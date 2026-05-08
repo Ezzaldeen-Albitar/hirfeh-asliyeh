@@ -7,24 +7,37 @@ import { selectRole, selectIsAuth } from '@/store/slices/authSlice';
 import {
   useGetAdminStatsQuery, useGetAllUsersQuery, useGetPendingArtisansQuery,
   useApproveArtisanMutation, useDeleteUserMutation, useUpdateUserRoleMutation,
+  useGetAllOrdersQuery, useGetAllAdminProductsQuery
 } from '@/store/api/adminApi';
-import { useGetAllOrdersQuery } from '@/store/api/adminApi';
-import { useGetAllProductsQuery, useDeleteProductMutation } from '@/store/api/productsApi';
+import { useDeleteProductMutation } from '@/store/api/productsApi';
+import { useUpdateOrderStatusMutation } from '@/store/api/ordersApi';
 import { toast, confirm } from '@/lib/sweetalert';
 import StatsCard from '@/components/dashboard/StatsCard';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import OrdersTable from '@/components/dashboard/OrdersTable';
-import { useUpdateOrderStatusMutation } from '@/store/api/ordersApi';
 
 const TABS = ['نظرة عامة', 'المستخدمون', 'المنتجات', 'الطلبات', 'الحرفيون المعلّقون'];
 const ROLES = ['customer', 'artisan', 'admin'];
 
 export default function AdminDashboard() {
-  const router   = useRouter();
-  const role     = useSelector(selectRole);
-  const isAuth   = useSelector(selectIsAuth);
-  const [tab, setTab]    = useState(0);
+  const router  = useRouter();
+  const role    = useSelector(selectRole);
+  const isAuth  = useSelector(selectIsAuth);
+  const [tab, setTab]       = useState(0);
   const [search, setSearch] = useState('');
+
+  // ✅ All hooks BEFORE any early return
+  const { data: statsData }    = useGetAdminStatsQuery();
+  const { data: usersData }    = useGetAllUsersQuery({ search });
+  const { data: ordersData }   = useGetAllOrdersQuery({});
+  const { data: productsData } = useGetAllAdminProductsQuery({});
+  const { data: pendingData }  = useGetPendingArtisansQuery();
+
+  const [approveArtisan] = useApproveArtisanMutation();
+  const [deleteUser]     = useDeleteUserMutation();
+  const [updateRole]     = useUpdateUserRoleMutation();
+  const [deleteProduct]  = useDeleteProductMutation();
+  const [updateStatus]   = useUpdateOrderStatusMutation();
 
   // Client-side guard: redirect if not admin
   useEffect(() => {
@@ -33,6 +46,7 @@ export default function AdminDashboard() {
     }
   }, [role, isAuth, router]);
 
+  // ✅ Early return AFTER all hooks
   if (!isAuth || role !== 'admin') {
     return (
       <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--cream)'}}>
@@ -44,18 +58,6 @@ export default function AdminDashboard() {
     );
   }
 
-  const { data: statsData } = useGetAdminStatsQuery();
-  const { data: usersData }    = useGetAllUsersQuery({ search });
-  const { data: ordersData }   = useGetAllOrdersQuery({});
-  const { data: productsData } = useGetAllProductsQuery({});
-  const { data: pendingData }  = useGetPendingArtisansQuery();
-
-  const [approveArtisan] = useApproveArtisanMutation();
-  const [deleteUser]     = useDeleteUserMutation();
-  const [updateRole]     = useUpdateUserRoleMutation();
-  const [deleteProduct]  = useDeleteProductMutation();
-  const [updateStatus]   = useUpdateOrderStatusMutation();
-
   const stats    = statsData?.data;
   const users    = usersData?.data    || [];
   const orders   = ordersData?.data   || [];
@@ -63,8 +65,14 @@ export default function AdminDashboard() {
   const pending  = pendingData?.data  || [];
 
   const handleApprove = async (id, name) => {
-    try { await approveArtisan(id).unwrap(); toast.success(`✓ تم قبول ${name}`); }
-    catch { toast.error('تعذر القبول'); }
+    try { 
+      await approveArtisan(id).unwrap(); 
+      toast.success(`✓ تم قبول ${name}`); 
+    }
+    catch (err) { 
+      console.error(err);
+      toast.error('تعذر القبول - تأكد من وجود المسار في السيرفر'); 
+    }
   };
 
   const handleDeleteUser = async (id, name) => {
@@ -217,7 +225,7 @@ export default function AdminDashboard() {
                   ) : products.map(p=>(
                     <tr key={p._id} style={{borderBottom:'1px solid var(--gold-pale)'}}>
                       <td className="px-3 py-2">
-                        <div style={{width:48,height:48,borderRadius:8,overflow:'hidden',position:'relative',flexShrink:0}}><Image src={p.images?.[0]||'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=60&q=60'} alt="" fill sizes="48px" style={{objectFit:'cover'}}/></div>
+                        <div style={{width:48,height:48,borderRadius:8,overflow:'hidden',position:'relative',flexShrink:0}}><Image src={p.image} alt="" fill sizes="48px" style={{objectFit:'cover'}}/></div>
                       </td>
                       <td className="px-3">
                         <div style={{fontWeight:600}}>{p.name}</div>
@@ -304,7 +312,6 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
-
       </div>
     </div>
   );
