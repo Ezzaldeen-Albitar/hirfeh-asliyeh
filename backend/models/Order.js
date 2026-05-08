@@ -85,7 +85,7 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ 'items.artisan': 1, status: 1 });
 orderSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
-orderSchema.pre('save', async function (next) {
+orderSchema.pre('validate', async function (next) {
   if (!this.orderNumber) {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     // Use crypto-random hex suffix to eliminate collision risk
@@ -93,6 +93,11 @@ orderSchema.pre('save', async function (next) {
     const suffix = randomBytes(3).toString('hex').toUpperCase(); // 6 hex chars
     this.orderNumber = `ORD-${dateStr}-${suffix}`;
   }
+
+  next();
+});
+
+orderSchema.pre('save', async function (next) {
   if (this.isModified('status')) {
     this.statusHistory.push({ status: this.status });
   }

@@ -1,18 +1,64 @@
 import { baseApi } from './baseApi';
 
+const normalizeArtisan = (artisan) => {
+  if (!artisan) return artisan;
+  return {
+    ...artisan,
+    name: artisan.name ?? artisan.user?.name ?? artisan.craftName ?? '',
+    avatar: artisan.avatar ?? artisan.user?.avatar ?? artisan.profileImage ?? '',
+    craftSpecialty: artisan.craftSpecialty ?? artisan.craftName ?? artisan.specialties?.[0] ?? '',
+    governorate: artisan.governorate ?? artisan.region ?? '',
+  };
+};
+
+const normalizeProduct = (product) => {
+  if (!product) return product;
+  return {
+    ...product,
+    name: product.name ?? product.title ?? '',
+    title: product.title ?? product.name ?? '',
+    craftType: product.craftType ?? product.category ?? '',
+    category: product.category ?? product.craftType ?? '',
+    governorate: product.governorate ?? product.artisan?.region ?? '',
+    artisan: normalizeArtisan(product.artisan),
+  };
+};
+
 export const productsApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     getProducts: builder.query({
       query: (params) => ({ url: '/products', params }),
+      transformResponse: (response) => ({
+        data: (response.products || []).map(normalizeProduct),
+        total: response.pagination?.total || 0,
+        totalPages: response.pagination?.totalPages || 1,
+        pagination: response.pagination,
+      }),
       providesTags: ['Products'],
     }),
     getProduct: builder.query({
       query: (id) => `/products/${id}`,
+      transformResponse: (response) => ({
+        data: normalizeProduct(response.product),
+      }),
       providesTags: (r, e, id) => [{ type: 'Products', id }],
     }),
     getFeaturedProducts: builder.query({
       query: () => '/products/featured',
+      transformResponse: (response) => ({
+        data: (response.products || []).map(normalizeProduct),
+      }),
+      providesTags: ['Products'],
+    }),
+    getMyProducts: builder.query({
+      query: (params) => ({ url: '/products/mine', params }),
+      transformResponse: (response) => ({
+        data: (response.products || []).map(normalizeProduct),
+        total: response.pagination?.total || 0,
+        totalPages: response.pagination?.totalPages || 1,
+        pagination: response.pagination,
+      }),
       providesTags: ['Products'],
     }),
     createProduct: builder.mutation({
@@ -41,5 +87,5 @@ export const productsApi = baseApi.injectEndpoints({
 export const {
   useGetProductsQuery, useGetProductQuery, useGetFeaturedProductsQuery,
   useCreateProductMutation, useUpdateProductMutation,
-  useDeleteProductMutation, useGetAllProductsQuery,
+  useDeleteProductMutation, useGetAllProductsQuery, useGetMyProductsQuery,
 } = productsApi;

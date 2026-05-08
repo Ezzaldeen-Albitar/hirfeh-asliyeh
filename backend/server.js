@@ -26,6 +26,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import craftCollectionRoutes from './routes/craftcollections.routes.js';
+import wishlistRoutes from './routes/wishlist.routes.js';
 import './Keepalive.js';
 await connectDB();
 const app = express();
@@ -78,6 +79,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/collections', craftCollectionRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => {

@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useGetProductQuery } from '@/store/api/productsApi';
 import { useGetProductReviewsQuery, useCreateReviewMutation } from '@/store/api/reviewsApi';
@@ -15,6 +15,7 @@ import StarRating from '@/components/common/StarRating';
 
 export default function ProductDetailPage() {
   const { id }             = useParams();
+  const router             = useRouter();
   const { addItemWithQty } = useCart();
   const { isAuth }         = useAuth();
   const [qty, setQty]         = useState(1);
@@ -34,6 +35,12 @@ export default function ProductDetailPage() {
     // إضافة المنتج مرة واحدة بالكمية المحددة (بدل loop)
     addItemWithQty(product, qty);
     toast.success(`تمت إضافة "${product.name}" (${qty}) إلى السلة ✓`);
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    addItemWithQty(product, qty);
+    router.push('/checkout?step=1');
   };
 
   const handleWishlist = async () => {
@@ -218,11 +225,11 @@ export default function ProductDetailPage() {
               </button>
             </div>
 
-            <Link href="/checkout"
+            <button type="button" onClick={handleBuyNow} disabled={product.stock === 0}
               className="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2"
               style={{ borderRadius: 10, fontWeight: 700, padding: '12px' }}>
               <i className="bi bi-lightning-fill" />اشتر الآن
-            </Link>
+            </button>
 
             {/* Tags */}
             <div className="d-flex gap-2 flex-wrap mt-3">

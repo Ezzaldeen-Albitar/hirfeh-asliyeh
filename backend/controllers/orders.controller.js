@@ -8,19 +8,40 @@ import { sendOrderConfirmationEmail } from '../services/mailer.service.js';
 
 export async function createOrder(req, res, next) {
   try {
-    const { items, shippingAddress, paymentMethod, notes, isGift, giftMessage } = req.body;
+    const { items, shippingAddress: rawShippingAddress, shipping, paymentMethod: rawPaymentMethod, notes, isGift, giftMessage } = req.body;
+    const shippingAddress = rawShippingAddress || (shipping ? {
+      recipientName: shipping.name,
+      phone: shipping.phone,
+      city: shipping.city || shipping.governorate || 'Amman',
+      governorate: shipping.governorate || shipping.city || 'Amman',
+      street: shipping.street || shipping.address || '',
+      notes: shipping.notes || notes,
+    } : null);
+    const paymentMethod =
+      rawPaymentMethod === 'cash'
+        ? 'cash_on_delivery'
+        : rawPaymentMethod === 'card'
+        ? 'stripe'
+        : ['cash_on_delivery', 'stripe', 'cliq'].includes(rawPaymentMethod)
+        ? rawPaymentMethod
+        : 'cash_on_delivery';
     if (!items || items.length === 0) {
       throw createError(400, 'Order must have at least one item.');
+    }
+    if (!shippingAddress?.recipientName || !shippingAddress?.phone || !shippingAddress?.city || !shippingAddress?.governorate) {
+      throw createError(400, 'Shipping address is incomplete.');
     }
     const orderItems = [];
     let subtotal = 0;
     for (const item of items) {
-      const product = await Product.findOne({ _id: item.productId, isActive: true })
+      const productId = item.productId || item.product;
+      const quantity = item.quantity || item.qty;
+      const product = await Product.findOne({ _id: productId, isActive: true })
         .populate('artisan');
       if (!product) {
-        throw createError(400, `Product not found: ${item.productId}`);
+        throw createError(400, `Product not found: ${productId}`);
       }
-      if (product.productType === 'ready-made' && product.stock < item.quantity) {
+      if (product.productType === 'ready-made' && product.stock < quantity) {
         throw createError(400, `Insufficient stock for "${product.title}". Available: ${product.stock}`);
       }
       orderItems.push({
@@ -28,11 +49,11 @@ export async function createOrder(req, res, next) {
         artisan: product.artisan._id,
         title: product.title,
         price: product.price,
-        quantity: item.quantity,
+        quantity,
         image: product.images[product.thumbnailIndex || 0],
         customizationRequest: item.customizationRequestId || undefined,
       });
-      subtotal += product.price * item.quantity;
+      subtotal += product.price * quantity;
     }
     const totalAmount = subtotal;
     const order = await Order.create({

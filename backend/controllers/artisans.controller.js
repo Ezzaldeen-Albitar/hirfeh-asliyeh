@@ -7,11 +7,53 @@ import { createError } from '../middleware/error.middleware.js';
 import { createAndEmitNotification } from '../services/notification.service.js';
 import { sendArtisanVerifiedEmail } from '../services/mailer.service.js';
 
+const REGION_ALIASES = {
+  'عمان': 'عمّان',
+  'عمّان': 'عمّان',
+  'اربد': 'إربد',
+  'إربد': 'إربد',
+  'الزرقاء': 'الزرقاء',
+  'مادبا': 'مأدبا',
+  'مأدبا': 'مأدبا',
+  'جرش': 'جرش',
+  'عجلون': 'عجلون',
+  'البلقاء': 'البلقاء',
+  'الكرك': 'الكرك',
+  'الطفيلة': 'الطفيلة',
+  'معان': 'معان',
+  'العقبة': 'العقبة',
+  'السلط': 'السلط',
+};
+
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+function normalizeRegion(region) {
+  if (typeof region !== 'string') return region;
+  const value = region.trim();
+  return REGION_ALIASES[value] || value;
+}
+
+function buildEmptyDashboard() {
+  return {
+    data: {
+      revenue: 0,
+      orders: 0,
+      views: 0,
+      products: 0,
+      revenueChange: '+0%',
+      ordersChange: '+0%',
+      viewsChange: '+0%',
+      productsChange: '+0',
+    },
+    revenueChart: [],
+  };
+}
+
 export async function getArtisans(req, res, next) {
   try {
     const { region, verified, specialties, page = 1, limit = 12, sort = 'rating' } = req.query;
     const filter = { isActive: true };
-    if (region) filter.region = region;
+    if (region) filter.region = normalizeRegion(region);
     if (verified === 'true') filter.isVerified = true;
     if (specialties) filter.specialties = { $in: specialties.split(',') };
     const sortMap = {
@@ -60,6 +102,7 @@ export async function applyAsArtisan(req, res, next) {
     const artisan = await ArtisanProfile.create({
       user: req.user.userId,
       ...req.body,
+      region: normalizeRegion(req.body.region),
       isVerified: false,
     });
     await User.findByIdAndUpdate(req.user.userId, { role: 'artisan' });
@@ -71,6 +114,146 @@ export async function applyAsArtisan(req, res, next) {
     next(err);
   }
 }
+
+export async function updateCurrentArtisanProfile(req, res, next) {
+  try {
+    const { name, phone, craftSpecialty, governorate, bio } = req.body;
+
+    const user = await User.findById(req.user.userId);
+    if (!user) throw createError(404, 'User not found.');
+
+    let artisan = await ArtisanProfile.findOne({ user: req.user.userId });
+
+    const craftName =
+      artisan?.craftName ||
+      (typeof craftSpecialty === 'string' && craftSpecialty.trim()) ||
+      user.name;
+    const region = normalizeRegion(
+      (typeof governorate === 'string' && governorate.trim()) ||
+      artisan?.region ||
+      user.address?.governorate
+    );
+    const specialties =
+      typeof craftSpecialty === 'string' && craftSpecialty.trim()
+        ? [craftSpecialty.trim()]
+        : artisan?.specialties || [];
+    const safeBio = typeof bio === 'string' ? bio.trim() : artisan?.bio || '';
+
+    if (!artisan) {
+      if (!craftName || !region || !safeBio) {
+        throw createError(400, 'Bio and governorate are required to create the artisan profile.');
+      }
+      artisan = await ArtisanProfile.create({
+        user: req.user.userId,
+        craftName,
+        bio: safeBio,
+        region,
+        specialties,
+        isVerified: false,
+      });
+    } else {
+      if (safeBio) artisan.bio = safeBio;
+      if (craftName) artisan.craftName = craftName;
+      if (region) artisan.region = region;
+      artisan.specialties = specialties;
+      await artisan.save();
+    }
+
+    if (typeof name === 'string') user.name = name.trim();
+    if (typeof phone === 'string') user.phone = phone.trim();
+    if (region) {
+      user.address = user.address || {};
+      user.address.governorate = region;
+    }
+    await user.save();
+
+    return res.json({
+      message: 'Profile updated.',
+      user,
+      artisanProfile: artisan,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getCurrentArtisanDashboard(req, res, next) {
+  try {
+    const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
+    if (!artisan) {
+      return res.json(buildEmptyDashboard());
+    }
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5, 1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const [productCount, productViews, ordersCount, revenueResult, monthlyRevenue] = await Promise.all([
+      Product.countDocuments({ artisan: artisan._id, isActive: true }),
+      Product.aggregate([
+        { $match: { artisan: artisan._id } },
+        { $group: { _id: null, totalViews: { $sum: '$viewCount' } } },
+      ]),
+      Order.countDocuments({ 'items.artisan': artisan._id }),
+      Order.aggregate([
+        { $match: { paymentStatus: 'paid', 'items.artisan': artisan._id } },
+        { $unwind: '$items' },
+        { $match: { 'items.artisan': artisan._id } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+          },
+        },
+      ]),
+      Order.aggregate([
+        { $match: { paymentStatus: 'paid', createdAt: { $gte: sixMonthsAgo }, 'items.artisan': artisan._id } },
+        { $unwind: '$items' },
+        { $match: { 'items.artisan': artisan._id } },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
+            },
+            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+    ]);
+
+    const revenueMap = new Map(
+      monthlyRevenue.map((item) => [`${item._id.year}-${item._id.month}`, item.revenue])
+    );
+
+    const revenueChart = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth() + index, 1);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      return {
+        month: MONTHS_AR[date.getMonth()],
+        revenue: revenueMap.get(key) || 0,
+      };
+    });
+
+    return res.json({
+      data: {
+        revenue: revenueResult[0]?.total || 0,
+        orders: ordersCount,
+        views: productViews[0]?.totalViews || 0,
+        products: productCount,
+        revenueChange: '+0%',
+        ordersChange: '+0%',
+        viewsChange: '+0%',
+        productsChange: '+0',
+      },
+      revenueChart,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateArtisan(req, res, next) {
   try {
     const artisan = await ArtisanProfile.findById(req.params.id);

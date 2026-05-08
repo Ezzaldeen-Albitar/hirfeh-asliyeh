@@ -94,6 +94,22 @@ export async function getProduct(req, res, next) {
   }
 }
 
+export async function getMyProducts(req, res, next) {
+  try {
+    const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
+    if (!artisanProfile) {
+      return res.json({
+        products: [],
+        pagination: { total: 0, page: 1, limit: parseInt(req.query.limit || 50), totalPages: 0, hasNext: false },
+      });
+    }
+    req.query = { ...req.query, artisan: artisanProfile._id.toString() };
+    return getProducts(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createProduct(req, res, next) {
   try {
     const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
