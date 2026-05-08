@@ -26,8 +26,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import craftCollectionRoutes from './routes/craftcollections.routes.js';
-require('./keepAlive');
-
+import './Keepalive.js';
 await connectDB();
 const app = express();
 app.set('trust proxy', 1);
