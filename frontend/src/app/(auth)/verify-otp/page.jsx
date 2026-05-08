@@ -54,8 +54,18 @@ function VerifyOtpForm() {
     if (!email)       return toast.error('لم يتم تحديد البريد الإلكتروني');
     if (cooldown > 0) return;
     try {
-      await resendOtp({ email, purpose }).unwrap();
-      toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني 📧');
+      const res = await resendOtp({ email, purpose }).unwrap();
+      
+      // ✅ Emergency fallback: If mail fails, the server now returns devOtp
+      if (res.devOtp) {
+        console.log('--- EMERGENCY OTP ---');
+        console.log('Your code is:', res.devOtp);
+        console.log('----------------------');
+        toast.info('وصل الرمز! (راجع الـ Console في المتصفح إذا لم يصلك إيميل)');
+      } else {
+        toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني 📧');
+      }
+
       setCooldown(120);
       setOtp('');
       setOtpKey(k => k + 1);

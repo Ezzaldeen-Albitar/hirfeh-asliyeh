@@ -15,13 +15,16 @@ const validate = (req, res, next) => {
   next();
 };
 
+// ✅ RELAXED Rate Limit: More attempts allowed to prevent frustration
 const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 3,
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 15, // ✅ Increased from 3 to 15 attempts
   message: { message: 'Too many OTP requests. Please wait 10 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'development', // Skip in dev
 });
+
 router.post(
   '/register',
   [
@@ -32,6 +35,7 @@ router.post(
   validate,
   authController.register
 );
+
 router.post(
   '/login',
   [
@@ -41,9 +45,11 @@ router.post(
   validate,
   authController.login
 );
+
 // Logout does NOT require a valid token — it just clears the cookie
 router.post('/logout', authController.logout);
 router.get('/me', verifyToken, authController.getMe);
+
 router.post(
   '/verify-otp',
   otpLimiter,
@@ -54,8 +60,10 @@ router.post(
   validate,
   authController.verifyOTPHandler
 );
+
 router.post('/resend-otp', otpLimiter, [body('email').isEmail()], validate, authController.resendOTP);
 router.post('/forgot-password', otpLimiter, [body('email').isEmail()], validate, authController.forgotPassword);
+
 router.post(
   '/reset-password',
   [
@@ -65,6 +73,7 @@ router.post(
   validate,
   authController.resetPassword
 );
+
 router.post('/google', authController.googleAuth);
 
 export default router;

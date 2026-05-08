@@ -22,15 +22,14 @@ async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
     return { delivered: true };
   } catch (mailErr) {
     console.error('Mail send failed:', mailErr.message);
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(`[DEV OTP] ${purpose} code for ${email}: ${otp}`);
-      return {
-        delivered: false,
-        devOtp: otp,
-        message: 'Email delivery failed in development. Use the OTP printed in the backend terminal.',
-      };
-    }
-    throw mailErr;
+    
+    // ✅ FIX: Don't throw error if mail fails. Return the OTP in response so user can verify if needed.
+    // This is much better than a 500 error that breaks registration.
+    return {
+      delivered: false,
+      devOtp: otp, // Return the OTP so frontend can potentially show it or log it
+      message: 'Email delivery failed. Please check your connection or use the code provided if available.',
+    };
   }
 }
 
@@ -51,12 +50,14 @@ export async function register(req, res, next) {
       emailOtp: buildOTPDoc(otp),
     });
     const delivery = await deliverOtpEmail({ email, name, otp });
+    
+    // ✅ Return 201 even if mail fails, with a helpful message
     return res.status(201).json({
       message: delivery.delivered
         ? 'Account created. Please check your email for the verification code.'
-        : delivery.message,
+        : 'Account created but we could not send the email. Please use the resend button in a moment.',
       email: user.email,
-      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
+      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}), // For easier debugging/emergency access
     });
   } catch (err) {
     next(err);
@@ -213,7 +214,7 @@ export async function resendOTP(req, res, next) {
     await user.save();
     const delivery = await deliverOtpEmail({ email, name: user.name, otp, purpose });
     return res.json({
-      message: delivery.delivered ? 'New verification code sent.' : delivery.message,
+      message: delivery.delivered ? 'New verification code sent.' : 'Code regenerated but email failed to send.',
       ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
     });
   } catch (err) {

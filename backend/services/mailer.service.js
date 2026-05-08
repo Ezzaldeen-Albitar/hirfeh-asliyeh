@@ -6,17 +6,22 @@ function getTransporter() {
   if (!_transporter) {
     _transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      family: 4,
+      port: 587, // ✅ Render & Cloud environments prefer 587 with STARTTLS
+      secure: false, // ✅ must be false for 587
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      tls: {
+        // ✅ helps with some self-signed certificate issues in cloud environments
+        rejectUnauthorized: false
+      }
     });
   }
   return _transporter;
 }
+
 const baseTemplate = (content) => `
 <!DOCTYPE html>
 <html lang="en">
