@@ -2,12 +2,13 @@ import Swal from 'sweetalert2';
 
 const base = {
   customClass: {
-    popup:            'ha-toast',
-    confirmButton:    'btn btn-primary px-4',
-    cancelButton:     'btn btn-outline-secondary px-4 ms-2',
+    popup:         'ha-toast',
+    confirmButton: 'btn btn-primary px-4',
+    cancelButton:  'btn btn-outline-secondary px-4 ms-2',
   },
   buttonsStyling: false,
-  fontFamily:     'Tajawal, sans-serif',
+  // fontFamily is not a valid SweetAlert2 parameter — use CSS instead:
+  // .ha-toast { font-family: 'Tajawal', sans-serif; }
 };
 
 export const toast = {
@@ -21,12 +22,12 @@ export const confirm = ({ title, text, confirmButtonText='تأكيد', confirmBu
   Swal.fire({
     ...base,
     title, text,
-    icon:               'warning',
-    showCancelButton:   true,
+    icon:              'warning',
+    showCancelButton:  true,
     confirmButtonText,
     cancelButtonText,
     confirmButtonColor,
-    reverseButtons:     true,
+    reverseButtons:    true,
   });
 
 export default Swal;

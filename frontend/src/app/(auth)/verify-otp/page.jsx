@@ -12,11 +12,14 @@ export default function VerifyOtpPage() {
   const searchParams = useSearchParams();
   const dispatch     = useDispatch();
   const email        = searchParams.get('email') || '';
+  // ✅ FIX 1: اقرأ الـ purpose من الـ URL بدل ما تحطه hardcoded
+  const purpose      = searchParams.get('purpose') || 'verify';
 
-  const [verifyOtp, { isLoading }]   = useVerifyOtpMutation();
-  const [resendOtp, { isLoading: resendLoading }] = useResendOtpMutation();
-  const [otp, setOtp]                 = useState('');
-  const [cooldown, setCooldown]       = useState(0); // ثواني قبل إعادة الإرسال
+  const [verifyOtp,  { isLoading }]             = useVerifyOtpMutation();
+  const [resendOtp,  { isLoading: resendLoading }] = useResendOtpMutation();
+  const [otp,        setOtp]                    = useState('');
+  const [otpKey,     setOtpKey]                 = useState(0); // ✅ FIX 3: مفتاح لإعادة رسم OTPInput
+  const [cooldown,   setCooldown]               = useState(0);
 
   // Countdown timer
   useEffect(() => {
@@ -28,12 +31,20 @@ export default function VerifyOtpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (otp.length < 6) return toast.error('يرجى إدخال الرمز كاملاً');
-    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
+    if (!email)         return toast.error('لم يتم تحديد البريد الإلكتروني');
     try {
-      const res = await verifyOtp({ email, otp, purpose: 'verify' }).unwrap();
-      if (res.token) dispatch(setCredentials(res));
-      toast.success('تم التحقق بنجاح! ✓');
-      router.push('/');
+      // ✅ FIX 1: أرسل الـ purpose الصحيح للسيرفر
+      const res = await verifyOtp({ email, otp, purpose }).unwrap();
+
+      // ✅ FIX 2: بعد التحقق وجّه المستخدم حسب الـ purpose
+      if (purpose === 'reset') {
+        toast.success('تم التحقق! أدخل كلمة المرور الجديدة');
+        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
+      } else {
+        if (res.token) dispatch(setCredentials(res));
+        toast.success('تم التحقق بنجاح! ✓');
+        router.push('/');
+      }
     } catch (err) {
       const remaining = err?.data?.remainingAttempts;
       if (remaining !== undefined) {
@@ -45,13 +56,16 @@ export default function VerifyOtpPage() {
   };
 
   const handleResend = async () => {
-    if (!email) return toast.error('لم يتم تحديد البريد الإلكتروني');
+    if (!email)       return toast.error('لم يتم تحديد البريد الإلكتروني');
     if (cooldown > 0) return;
     try {
-      const res = await resendOtp({ email, purpose: 'verify' }).unwrap();
+      // ✅ FIX 1: أرسل الـ purpose الصحيح عند إعادة الإرسال أيضاً
+      await resendOtp({ email, purpose }).unwrap();
       toast.success('تم إرسال رمز جديد إلى بريدك الإلكتروني 📧');
-      setCooldown(120); // 2 دقيقة cooldown
+      setCooldown(120);
+      // ✅ FIX 3: صفّر مربعات الـ OTP بتغيير الـ key
       setOtp('');
+      setOtpKey(k => k + 1);
     } catch (err) {
       const retry = err?.data?.retryAfterSeconds;
       if (retry) {
@@ -78,7 +92,7 @@ export default function VerifyOtpPage() {
         </div>
 
         <h2 style={{ fontFamily: 'Amiri,serif', fontSize: '1.7rem', color: 'var(--charcoal)', marginBottom: 8 }}>
-          التحقق من البريد الإلكتروني
+          {purpose === 'reset' ? 'رمز استعادة كلمة المرور' : 'التحقق من البريد الإلكتروني'}
         </h2>
 
         <p style={{ color: 'var(--warm-gray)', fontSize: '0.88rem', marginBottom: 8 }}>
@@ -98,7 +112,8 @@ export default function VerifyOtpPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <OTPInput length={6} onChange={setOtp} value={otp} />
+            {/* ✅ FIX 3: key يجبر React على إعادة إنشاء المكوّن كاملاً عند الـ resend */}
+            <OTPInput key={otpKey} length={6} onChange={setOtp} value={otp} />
           </div>
 
           <button
@@ -109,7 +124,7 @@ export default function VerifyOtpPage() {
             style={{ borderRadius: 10, fontWeight: 700, fontSize: '1rem' }}
           >
             {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : null}
-            تأكيد الرمز
+            {purpose === 'reset' ? 'تأكيد والمتابعة' : 'تأكيد الرمز'}
           </button>
 
           {/* Resend button with countdown */}

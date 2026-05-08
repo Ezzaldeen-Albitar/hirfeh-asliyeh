@@ -23,14 +23,49 @@ export default function RegisterPage() {
     e.preventDefault();
     if (form.password !== form.confirm) return toast.error('كلمات المرور غير متطابقة');
     if (form.password.length < 8) return toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+
+    const { confirm, craftSpecialty, governorate, bio, ...base } = form;
+    const payload = { ...base, role };
+    if (role === 'artisan') {
+      if (craftSpecialty) payload.craftSpecialty = craftSpecialty;
+      if (governorate)    payload.governorate    = governorate;
+      if (bio)            payload.bio            = bio;
+    }
+
     try {
-      const { confirm, ...payload } = form;
-      await register({ ...payload, role }).unwrap();
+      await register(payload).unwrap();
       toast.success('تم إنشاء الحساب! تحقق من بريدك الإلكتروني 📧');
-      // نمرر الإيميل لصفحة التحقق
-      router.push(`/verify-otp?email=${encodeURIComponent(form.email)}`);
+      router.push(`/verify-otp?email=${encodeURIComponent(form.email)}&purpose=verify`);
     } catch (err) {
-      toast.error(err?.data?.message || 'حدث خطأ ما، حاول مجدداً');
+      const status  = err?.status;
+      const message = err?.data?.message || '';
+
+      // ✅ FIX: السيرفر حفظ الحساب بنجاح بس فشل في إرسال الإيميل
+      // الأسباب الشائعة: ENETUNREACH، connect timeout، mail send failed
+      // في هاي الحالة نوجّه المستخدم لصفحة OTP مع رسالة واضحة
+      const isMailError =
+        status === 500 &&
+        (message.toLowerCase().includes('mail') ||
+         message.toLowerCase().includes('email') ||
+         message.toLowerCase().includes('send') ||
+         message.toLowerCase().includes('smtp') ||
+         message.toLowerCase().includes('connect'));
+
+      // بعض السيرفرات بترجع 201 مع error في الإيميل
+      const accountCreated = status === 201 || isMailError;
+
+      if (accountCreated) {
+        toast.info(
+          'تم إنشاء حسابك ✓ — لم يصلك رمز التحقق؟ اضغط "إعادة الإرسال" في الصفحة التالية',
+          { timer: 5000 }
+        );
+        router.push(`/verify-otp?email=${encodeURIComponent(form.email)}&purpose=verify`);
+      } else if (status === 409 || message.toLowerCase().includes('exist')) {
+        // الحساب موجود مسبقاً
+        toast.error('البريد الإلكتروني مسجّل مسبقاً — جرّب تسجيل الدخول');
+      } else {
+        toast.error(message || 'حدث خطأ ما، حاول مجدداً');
+      }
     }
   };
 
@@ -84,7 +119,6 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
           {input('الاسم الكامل', 'name', 'text', 'محمد أحمد العلي')}
 
-          {/* Email */}
           <div className="mb-3">
             <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 500 }}>
               البريد الإلكتروني

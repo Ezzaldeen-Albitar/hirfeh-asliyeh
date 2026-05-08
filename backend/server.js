@@ -26,6 +26,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import craftCollectionRoutes from './routes/craftcollections.routes.js';
+require('./keepAlive');
 
 await connectDB();
 const app = express();
@@ -79,7 +80,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/collections', craftCollectionRoutes);
 
-
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });

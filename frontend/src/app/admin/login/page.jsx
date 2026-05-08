@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link'; // ✅ FIX ESLint: استورد Link
 import { useRouter } from 'next/navigation';
 import { useLoginMutation } from '@/store/api/authApi';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/store/slices/authSlice';
-import Cookies from 'js-cookie';
 
 export default function AdminLoginPage() {
   const router   = useRouter();
@@ -34,11 +34,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Store token in cookie so middleware can read it
-      if (res.token) {
-        Cookies.set('token', res.token, { expires: 7, sameSite: 'lax' });
-      }
-
+      // ✅ FIX 3: لا تحفظ التوكن يدوياً — setCredentials بيعملها
       dispatch(setCredentials({ user: res.user, token: res.token }));
       router.replace('/admin');
     } catch (err) {
@@ -58,7 +54,6 @@ export default function AdminLoginPage() {
       fontFamily: 'Tajawal, sans-serif',
       direction: 'rtl',
     }}>
-      {/* Background pattern */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
         {[...Array(6)].map((_, i) => (
           <div key={i} style={{
@@ -74,7 +69,6 @@ export default function AdminLoginPage() {
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
 
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
             width: 72, height: 72, borderRadius: 20, margin: '0 auto 16px',
@@ -96,7 +90,6 @@ export default function AdminLoginPage() {
           </div>
         </div>
 
-        {/* Card */}
         <div style={{
           background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(184,150,60,0.2)',
@@ -122,7 +115,6 @@ export default function AdminLoginPage() {
           )}
 
           <form onSubmit={handleSubmit}>
-            {/* Email */}
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: 'block', fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', marginBottom: 8, fontWeight: 500 }}>
                 البريد الإلكتروني
@@ -150,7 +142,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: 28 }}>
               <label style={{ display: 'block', fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', marginBottom: 8, fontWeight: 500 }}>
                 كلمة المرور
@@ -205,12 +196,11 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
+          {/* ✅ FIX ESLint: <Link> بدل <a> للروابط الداخلية */}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <a href="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textDecoration: 'none', transition: 'color .2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'rgba(184,150,60,0.8)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}>
+            <Link href="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textDecoration: 'none' }}>
               <i className="bi bi-arrow-right me-1"/>العودة للموقع
-            </a>
+            </Link>
           </div>
         </div>
 

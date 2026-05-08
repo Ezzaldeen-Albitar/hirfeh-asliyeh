@@ -14,9 +14,11 @@ export default function LoginPage() {
   const [login, { isLoading }] = useLoginMutation();
   const [email, setEmail] = useState('');
   const [pass,  setPass]  = useState('');
+  const [waking, setWaking] = useState(false); // حالة "السيرفر يصحى"
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setWaking(false);
     try {
       const res = await login({ email, password: pass }).unwrap();
       dispatch(setCredentials(res));
@@ -26,9 +28,17 @@ export default function LoginPage() {
         res.user?.role === 'admin'   ? '/admin' : '/'
       );
     } catch (err) {
+      // إذا السيرفر كان نايماً وقاعد يصحى — baseApi.js بيعيد المحاولة تلقائياً
+      // نعرض رسالة للمستخدم إنه "انتظر شوي"
+      if (err?.status === 403 || err?.status === 502 || err?.status === 503) {
+        setWaking(true);
+        toast.info('السيرفر يصحى من السبات... أعد المحاولة بعد ثوانٍ 🔄');
+        return;
+      }
+      setWaking(false);
       if (err?.data?.requiresVerification) {
-        toast.info('يرجى التحقق من بريدك الإلكتروني أولاً');
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+        toast.info('حسابك غير مفعّل — سنوجّهك لصفحة التحقق، اضغط "إعادة الإرسال" إذا لم يصلك الرمز');
+        router.push(`/verify-otp?email=${encodeURIComponent(email)}&purpose=verify`);
       } else {
         toast.error(err?.data?.message || 'بيانات الدخول غير صحيحة');
       }
@@ -75,11 +85,28 @@ export default function LoginPage() {
             <p style={{ color: 'var(--warm-gray)', fontSize: '0.9rem' }}>Sign in to your account</p>
           </div>
 
-          {/* ✅ suppressHydrationWarning على الـ wrapper مباشرة يحل مشكلة fdprocessedid */}
+          {/* مؤشر "السيرفر يصحى" — يظهر فقط عند cold start */}
+          {waking && (
+            <div style={{
+              background: 'rgba(122,28,46,.06)',
+              border: '1px solid rgba(122,28,46,.2)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: '0.85rem',
+              color: 'var(--burgundy)',
+            }}>
+              <span className="spinner-border spinner-border-sm flex-shrink-0" />
+              <span>السيرفر يصحى من السبات — سيستغرق حوالي 30 ثانية، ثم أعد المحاولة</span>
+            </div>
+          )}
+
           <div suppressHydrationWarning>
             <form onSubmit={handleSubmit}>
 
-              {/* Email */}
               <div className="mb-3">
                 <label className="form-label fw-500" style={{ fontSize: '0.88rem' }}>
                   البريد الإلكتروني
@@ -95,7 +122,6 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Password */}
               <div className="mb-4">
                 <div className="d-flex justify-content-between">
                   <label className="form-label fw-500" style={{ fontSize: '0.88rem' }}>كلمة المرور</label>
@@ -124,7 +150,6 @@ export default function LoginPage() {
                 تسجيل الدخول
               </button>
 
-              {/* Divider */}
               <div className="d-flex align-items-center gap-3 mb-3">
                 <hr className="flex-grow-1" style={{ borderColor: 'var(--stone)' }} />
                 <small style={{ color: 'var(--warm-gray)' }}>أو</small>
