@@ -26,11 +26,14 @@ import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import craftCollectionRoutes from './routes/craftcollections.routes.js';
-import wishlistRoutes from './routes/wishlist.routes.js';
-import './Keepalive.js';
+import wishlistRoutes from './routes/wishlist.routes.js'; // تم دمج الاستيراد
+import './Keepalive.js'; // الحفاظ على ملف منع التنويم
+
 await connectDB();
+
 const app = express();
 app.set('trust proxy', 1);
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -38,10 +41,13 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
 initSocket(io);
 app.set('io', io);
+
 app.use(helmet());
 app.use(compression());
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -49,22 +55,24 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many requests, please try again later.' },
 });
+
 app.use('/api/', globalLimiter);
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
+
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/artisans', artisanRoutes);
 app.use('/api/products', productRoutes);
@@ -79,13 +87,16 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/collections', craftCollectionRoutes);
-app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/wishlist', wishlistRoutes); // تم تفعيل المسار
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
+
 app.use(errorHandler);
+
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`Hirfeh Asliyeh server running on port ${PORT} [${process.env.NODE_ENV}]`);

@@ -7,6 +7,8 @@ const router = Router();
 router.post('/', verifyToken, requireRole('customer'), ordersController.createOrder);
 router.get('/', verifyToken, ordersController.getOrders);
 router.get('/:id', verifyToken, ordersController.getOrder);
+router.patch('/:id/status', verifyToken, requireRole('artisan', 'admin'), ordersController.updateOrderStatus);
+router.patch('/:id/cancel', verifyToken, ordersController.cancelOrder);
 router.put('/:id/status', verifyToken, requireRole('artisan', 'admin'), ordersController.updateOrderStatus);
 router.put('/:id/cancel', verifyToken, ordersController.cancelOrder);
 

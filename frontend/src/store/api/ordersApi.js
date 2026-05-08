@@ -1,14 +1,20 @@
 import { baseApi } from './baseApi';
 
+/**
+ * توحيد هيكلة بيانات الطلب لضمان عمل الواجهات بسلاسة
+ */
 const normalizeOrder = (order) => {
   if (!order) return order;
   return {
     ...order,
+    // التأكد من وجود حقل total ليتوافق مع OrdersTable
     total: order.total ?? order.totalAmount ?? 0,
+    // توحيد اسم المنتج بين name و title
     items: (order.items || []).map((item) => ({
       ...item,
       name: item.name ?? item.title ?? '',
     })),
+    // ضمان وجود رقم الهاتف في بيانات العميل
     customer: order.customer
       ? {
           ...order.customer,
@@ -24,6 +30,7 @@ export const ordersApi = baseApi.injectEndpoints({
     getOrders: builder.query({
       query: (params) => ({ url: '/orders', params }),
       transformResponse: (response) => ({
+        // استخدام normalizeOrder لجميع الطلبات القادمة
         data: (response.orders || []).map(normalizeOrder),
         pagination: response.pagination,
       }),
@@ -44,12 +51,14 @@ export const ordersApi = baseApi.injectEndpoints({
       query: ({ id, status }) => ({
         url: `/orders/${id}/status`,
         method: 'PUT',
+        // التعامل مع حالة 'processing' لتوافق الباك إند
         body: { status: status === 'processing' ? 'in-progress' : status },
       }),
       invalidatesTags: ['Orders'],
     }),
     getArtisanOrders: builder.query({
-      query: (params) => ({ url: '/orders', params }),
+      // الحفاظ على المسار الصحيح للحرفي إذا كان منفصلاً
+      query: (params) => ({ url: '/orders/artisan', params }),
       transformResponse: (response) => ({
         data: (response.orders || []).map(normalizeOrder),
         pagination: response.pagination,
@@ -64,6 +73,10 @@ export const ordersApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useGetOrdersQuery, useGetOrderQuery, useCreateOrderMutation,
-  useUpdateOrderStatusMutation, useGetArtisanOrdersQuery, useCancelOrderMutation,
+  useGetOrdersQuery,
+  useGetOrderQuery,
+  useCreateOrderMutation,
+  useUpdateOrderStatusMutation,
+  useGetArtisanOrdersQuery,
+  useCancelOrderMutation,
 } = ordersApi;

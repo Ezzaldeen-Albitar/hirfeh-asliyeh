@@ -184,6 +184,7 @@ export async function getAdminProducts(req, res, next) {
   try {
     const { page = 1, limit = 20, isActive, isFeatured } = req.query;
     const filter = {};
+    // If isActive is not provided, don't filter by it to show all products to admin
     if (isActive !== undefined) filter.isActive = isActive === 'true';
     if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -218,6 +219,44 @@ export async function createBadge(req, res, next) {
   try {
     const badge = await Badge.create(req.body);
     return res.status(201).json({ message: 'Badge created.', badge });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteUser(req, res, next) {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) throw createError(404, 'User not found.');
+    if (user.role === 'admin') throw createError(403, 'لا يمكن حذف حساب المدير.');
+    // Check if user is trying to delete themselves
+    if (user._id.toString() === req.user.userId) throw createError(403, 'لا يمكنك حذف حسابك الشخصي.');
+    
+    await User.findByIdAndDelete(req.params.id);
+    // If artisan, delete profile too
+    if (user.role === 'artisan') {
+      await ArtisanProfile.findOneAndDelete({ user: user._id });
+    }
+    
+    return res.json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateUserRole(req, res, next) {
+  try {
+    const { role } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) throw createError(404, 'User not found.');
+    
+    if (user._id.toString() === req.user.userId && role !== 'admin') {
+      throw createError(403, 'لا يمكنك تغيير دورك من مدير إلى دور آخر بنفسك.');
+    }
+    user.role = role;
+    await user.save();
+    
+    return res.json({ message: 'User role updated.', user: { _id: user._id, role: user.role } });
   } catch (err) {
     next(err);
   }
