@@ -100,7 +100,9 @@ function ArtisanDashboard() {
 
   const handleSaveProfile = async () => {
     try {
-      await updateProfile(profileForm).unwrap();
+      const updated = await updateProfile(profileForm).unwrap();
+      // ✅ FIX 4: حدّث الـ Redux store بعد الحفظ حتى يتغير الاسم في الـ Navbar فوراً
+      updateUser(profileForm);
       toast.success('تم حفظ التغييرات ✓');
     } catch { toast.error('تعذر الحفظ'); }
   };

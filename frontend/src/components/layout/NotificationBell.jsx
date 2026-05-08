@@ -56,9 +56,10 @@ export default function NotificationBell() {
             لا توجد إشعارات
           </div>
         ) : (
-          items.slice(0, 8).map((n, i) => (
+          items.slice(0, 8).map((n) => (
             <div
-              key={i}
+              // ✅ FIX 5: استخدم معرف فريد بدل الـ index
+              key={n._id || n.message + n.time}
               className="p-3 border-bottom"
               style={{
                 background: n.read ? '#fff' : 'rgba(184,150,60,0.06)',

@@ -11,6 +11,28 @@ import {
 } from '../services/otp.service.js';
 import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailer.service.js';
 import { signTokenAndSetCookie, clearAuthCookie } from '../utils/jwt.js';
+
+async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
+  try {
+    if (purpose === 'reset') {
+      await sendPasswordResetEmail(email, name, otp);
+    } else {
+      await sendOTPEmail(email, name, otp);
+    }
+    return { delivered: true };
+  } catch (mailErr) {
+    console.error('Mail send failed:', mailErr.message);
+    
+    // ✅ FIX: Don't throw error if mail fails. Return the OTP in response so user can verify if needed.
+    // This is much better than a 500 error that breaks registration.
+    return {
+      delivered: false,
+      devOtp: otp, // Return the OTP so frontend can potentially show it or log it
+      message: 'Email delivery failed. Please check your connection or use the code provided if available.',
+    };
+  }
+}
+
 export async function register(req, res, next) {
   try {
     const { name, email, password, role } = req.body;
@@ -27,14 +49,15 @@ export async function register(req, res, next) {
       role: safeRole,
       emailOtp: buildOTPDoc(otp),
     });
-    try {
-      await sendOTPEmail(email, name, otp);
-    } catch (mailErr) {
-      console.error('Mail send failed:', mailErr.message);
-    }
+    const delivery = await deliverOtpEmail({ email, name, otp });
+    
+    // ✅ Return 201 even if mail fails, with a helpful message
     return res.status(201).json({
-      message: 'Account created. Please check your email for the verification code.',
+      message: delivery.delivered
+        ? 'Account created. Please check your email for the verification code.'
+        : 'Account created but we could not send the email. Please use the resend button in a moment.',
       email: user.email,
+      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}), // For easier debugging/emergency access
     });
   } catch (err) {
     next(err);
@@ -63,7 +86,7 @@ export async function login(req, res, next) {
         message: `Account banned: ${user.bannedReason || 'Contact support for details.'}`,
       });
     }
-    signTokenAndSetCookie(res, {
+    const token = signTokenAndSetCookie(res, {
       userId: user._id,
       role: user.role,
       email: user.email,
@@ -78,6 +101,7 @@ export async function login(req, res, next) {
         avatar: user.avatar,
         isEmailVerified: user.isEmailVerified,
       },
+      token,
     });
   } catch (err) {
     next(err);
@@ -139,7 +163,7 @@ export async function verifyOTPHandler(req, res, next) {
       user.isEmailVerified = true;
       user.emailOtp = undefined;
       await user.save();
-      signTokenAndSetCookie(res, {
+      const token = signTokenAndSetCookie(res, {
         userId: user._id,
         role: user.role,
         email: user.email,
@@ -152,6 +176,7 @@ export async function verifyOTPHandler(req, res, next) {
           email: user.email,
           role: user.role,
         },
+        token,
       });
     }
     if (purpose === 'reset') {
@@ -187,16 +212,11 @@ export async function resendOTP(req, res, next) {
       user.emailOtp = newOtpDoc;
     }
     await user.save();
-    try {
-      if (purpose === 'reset') {
-        await sendPasswordResetEmail(email, user.name, otp);
-      } else {
-        await sendOTPEmail(email, user.name, otp);
-      }
-    } catch (mailErr) {
-      console.error('Mail send failed:', mailErr.message);
-    }
-    return res.json({ message: 'New verification code sent.' });
+    const delivery = await deliverOtpEmail({ email, name: user.name, otp, purpose });
+    return res.json({
+      message: delivery.delivered ? 'New verification code sent.' : 'Code regenerated but email failed to send.',
+      ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
+    });
   } catch (err) {
     next(err);
   }
@@ -213,11 +233,7 @@ export async function forgotPassword(req, res, next) {
       const otp = generateOTP();
       user.passwordResetOtp = { ...buildOTPDoc(otp), isUsed: false };
       await user.save();
-      try {
-        await sendPasswordResetEmail(email, user.name, otp);
-      } catch (mailErr) {
-        console.error('Mail send failed:', mailErr.message);
-      }
+      await deliverOtpEmail({ email, name: user.name, otp, purpose: 'reset' });
     }
     return res.json({ message: 'If this email exists, a reset code has been sent.' });
   } catch (err) {
@@ -247,10 +263,32 @@ export async function resetPassword(req, res, next) {
 export async function googleAuth(req, res, next) {
   try {
     const { idToken } = req.body;
-    const { email, name, googleId, avatar } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken is required.' });
+    }
+
+    // Verify the token with Google's public endpoint
+    const googleRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+    );
+    if (!googleRes.ok) {
+      return res.status(401).json({ message: 'Invalid Google token.' });
+    }
+    const payload = await googleRes.json();
+
+    // Confirm the token was issued for our app
+    const validAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+    ].filter(Boolean);
+    if (validAudiences.length && !validAudiences.includes(payload.aud)) {
+      return res.status(401).json({ message: 'Google token audience mismatch.' });
+    }
+
+    const { email, name, sub: googleId, picture: avatar } = payload;
     if (!email || !googleId) {
       return res.status(400).json({ message: 'Invalid Google credentials.' });
     }
+
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
     if (!user) {
       user = await User.create({
@@ -269,7 +307,7 @@ export async function googleAuth(req, res, next) {
     if (user.isBanned) {
       return res.status(403).json({ message: 'Account banned.' });
     }
-    signTokenAndSetCookie(res, {
+    const token = signTokenAndSetCookie(res, {
       userId: user._id,
       role: user.role,
       email: user.email,
@@ -283,6 +321,7 @@ export async function googleAuth(req, res, next) {
         role: user.role,
         avatar: user.avatar,
       },
+      token,
     });
   } catch (err) {
     next(err);

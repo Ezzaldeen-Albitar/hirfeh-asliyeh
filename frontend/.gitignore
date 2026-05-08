@@ -19,7 +19,10 @@
 
 # production
 /build
-
+*.zip
+*.7z
+*.rar
+*.tar.gz
 # misc
 .DS_Store
 *.pem

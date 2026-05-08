@@ -187,8 +187,8 @@ export async function deleteProduct(req, res, next) {
         throw createError(403, 'You do not own this product.');
       }
     }
-    await Product.findByIdAndUpdate(req.params.id, { isActive: false });
-    return res.json({ message: 'Product deactivated.' });
+    await Product.findByIdAndDelete(req.params.id);
+    return res.json({ message: 'Product deleted successfully.' });
   } catch (err) {
     next(err);
   }

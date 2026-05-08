@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 
 export const artisansApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getArtisans: builder.query({
       query: (params) => ({ url: '/artisans', params }),

@@ -1,12 +1,27 @@
 import nodemailer from 'nodemailer';
-const createTransporter = () =>
-    nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
+
+// Transporter singleton — created once and reused for all emails
+let _transporter = null;
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587, // ✅ Render & Cloud environments prefer 587 with STARTTLS
+      secure: false, // ✅ must be false for 587
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        // ✅ helps with some self-signed certificate issues in cloud environments
+        rejectUnauthorized: false
+      }
     });
+  }
+  return _transporter;
+}
+
 const baseTemplate = (content) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -86,41 +101,41 @@ const artisanVerifiedTemplate = (name) => baseTemplate(`
 `);
 
 export async function sendOTPEmail(to, name, otp) {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
-        to,
-        subject: 'Verification Code — Hirfeh Asliyeh',
-        html: otpVerifyTemplate(name, otp),
-    });
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Verification Code — Hirfeh Asliyeh',
+    html: otpVerifyTemplate(name, otp),
+  });
 }
 
 export async function sendPasswordResetEmail(to, name, otp) {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
-        to,
-        subject: 'Password Reset — Hirfeh Asliyeh',
-        html: otpResetTemplate(name, otp),
-    });
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Password Reset — Hirfeh Asliyeh',
+    html: otpResetTemplate(name, otp),
+  });
 }
 
 export async function sendOrderConfirmationEmail(to, name, orderNumber, total) {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
-        to,
-        subject: `Order Confirmation #${orderNumber} — Hirfeh Asliyeh`,
-        html: orderConfirmTemplate(name, orderNumber, total),
-    });
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `Order Confirmation #${orderNumber} — Hirfeh Asliyeh`,
+    html: orderConfirmTemplate(name, orderNumber, total),
+  });
 }
 
 export async function sendArtisanVerifiedEmail(to, name) {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
-        to,
-        subject: 'Account Verified — Hirfeh Asliyeh',
-        html: artisanVerifiedTemplate(name),
-    });
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"Hirfeh Asliyeh " <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Account Verified — Hirfeh Asliyeh',
+    html: artisanVerifiedTemplate(name),
+  });
 }

@@ -3,3 +3,7 @@ node_modules/
 .DS_Store
 *.log
 dist/
+*.zip
+*.7z
+*.rar
+*.tar.gz

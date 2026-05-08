@@ -6,6 +6,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 import { initSocket } from './config/socket.js';
 import { errorHandler } from './middleware/error.middleware.js';
@@ -24,9 +26,10 @@ import uploadRoutes from './routes/upload.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import craftCollectionRoutes from './routes/craftcollections.routes.js';
-
+import './Keepalive.js';
 await connectDB();
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -37,6 +40,15 @@ const io = new Server(httpServer, {
 initSocket(io);
 app.set('io', io);
 app.use(helmet());
+app.use(compression());
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' },
+});
+app.use('/api/', globalLimiter);
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
@@ -67,7 +79,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/collections', craftCollectionRoutes);
 
-
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
