@@ -9,6 +9,7 @@ import BadgeDisplay from '@/components/artisans/BadgeDisplay';
 import StarRating from '@/components/common/StarRating';
 import MapView from '@/components/common/MapView';
 import { DEFAULT_ARTISAN_AVATAR, DEFAULT_ARTISAN_COVER, getSafeImageSrc } from '@/lib/imageUtils';
+import { getArtisanCoverSrc } from '@/lib/artisanCraftImages';
 
 export default function ArtisanProfilePage() {
   const { id } = useParams();
@@ -50,7 +51,11 @@ export default function ArtisanProfilePage() {
       {/* Cover */}
       <div style={{position:'relative',height:320,overflow:'hidden'}}>
         <Image
-          src={getSafeImageSrc(artisan.coverImage, getSafeImageSrc(artisan.avatar, DEFAULT_ARTISAN_COVER))}
+          src={getArtisanCoverSrc(
+            artisan.coverImage,
+            artisan.craftSpecialty,
+            getSafeImageSrc(artisan.avatar, DEFAULT_ARTISAN_COVER)
+          )}
           alt="cover"
           className="w-100 h-100"
           fill
@@ -92,7 +97,7 @@ export default function ArtisanProfilePage() {
                     </small>
                   </div>
                 </div>
-                <Link href={`/customizations/new?artisan=${artisan._id}`}
+                <Link href={`/customizations?artisan=${artisan._id}`}
                   className="btn btn-primary d-flex align-items-center gap-2"
                   style={{borderRadius:10,fontWeight:700,padding:'10px 22px'}}>
                   <i className="bi bi-chat-dots-fill"/>تواصل معه

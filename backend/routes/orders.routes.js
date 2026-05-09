@@ -3,8 +3,14 @@ import { verifyToken, requireRole } from '../middleware/auth.middleware.js';
 import * as ordersController from '../controllers/orders.controller.js';
 
 const router = Router();
+const requireCustomerOrder = (req, res, next) => {
+  if (req.user.role !== 'customer') {
+    return res.status(403).json({ message: 'Only customers can place orders.' });
+  }
+  next();
+};
 
-router.post('/', verifyToken, requireRole('customer'), ordersController.createOrder);
+router.post('/', verifyToken, requireCustomerOrder, ordersController.createOrder);
 router.get('/', verifyToken, ordersController.getOrders);
 router.get('/artisan', verifyToken, requireRole('artisan'), ordersController.getOrders);
 router.get('/:id', verifyToken, ordersController.getOrder);

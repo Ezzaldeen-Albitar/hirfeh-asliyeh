@@ -29,9 +29,10 @@ function NewCustomizationForm() {
     }
 
     try {
-      await createCustomization({ artisan: artisanId, ...form }).unwrap();
+      const created = await createCustomization({ artisan: artisanId, ...form }).unwrap();
+      const requestId = created?.request?._id;
       toast.success('تم إرسال طلب التخصيص');
-      router.push('/customizations');
+      router.push(requestId ? `/customizations?request=${requestId}` : '/customizations');
     } catch (err) {
       toast.error(err?.data?.message || 'تعذر إرسال الطلب');
     }
@@ -52,8 +53,9 @@ function NewCustomizationForm() {
             طلب تخصيص جديد
           </h1>
           <p style={{ color: 'var(--warm-gray)', marginBottom: 28, fontSize: '0.9rem' }}>
-            أخبر الحرفي بما تريد وسيتواصل معك قريباً
+            أخبر الحرفي بما تريد وسيتواصل معك قريبًا
           </p>
+
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
@@ -69,6 +71,7 @@ function NewCustomizationForm() {
                 style={{ borderRadius: 8, borderColor: 'var(--stone)', resize: 'none' }}
               />
             </div>
+
             <div className="row g-3">
               <div className="col-md-6">
                 <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
@@ -83,6 +86,7 @@ function NewCustomizationForm() {
                   style={{ borderRadius: 8, borderColor: 'var(--stone)' }}
                 />
               </div>
+
               <div className="col-md-6">
                 <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
                   الموعد المطلوب
@@ -96,6 +100,7 @@ function NewCustomizationForm() {
                 />
               </div>
             </div>
+
             <div className="mt-4 d-flex gap-3">
               <button
                 type="submit"
@@ -106,6 +111,7 @@ function NewCustomizationForm() {
                 {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : null}
                 إرسال الطلب
               </button>
+
               <button
                 type="button"
                 className="btn btn-outline-primary"

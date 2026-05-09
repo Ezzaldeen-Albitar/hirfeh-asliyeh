@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { selectIsAuth } from '@/store/slices/authSlice';
 import { addNotification } from '@/store/slices/notificationSlice';
 import Cookies from 'js-cookie';
+import { clearActiveSocket, setActiveSocket } from '@/lib/socketClient';
 
 export function useSocket() {
   const socketRef = useRef(null);
@@ -15,6 +16,7 @@ export function useSocket() {
   useEffect(() => {
     if (!isAuth) {
       socketRef.current?.disconnect();
+      clearActiveSocket(socketRef.current);
       socketRef.current = null;
       return;
     }
@@ -31,6 +33,7 @@ export function useSocket() {
       transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;
+    setActiveSocket(socket);
 
     socket.on('notification:new', (data) => {
       dispatch(addNotification(data));
@@ -42,6 +45,7 @@ export function useSocket() {
 
     return () => {
       socket.disconnect();
+      clearActiveSocket(socket);
       socketRef.current = null;
     };
   }, [isAuth, dispatch]);

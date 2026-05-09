@@ -28,6 +28,15 @@ function formatTime(value) {
   }
 }
 
+function getNotificationTarget(notification) {
+  const requestId = notification?.data?.requestId;
+  if (requestId && ['message', 'customization'].includes(notification?.type)) {
+    return `/customizations?request=${requestId}`;
+  }
+
+  return notification?.link;
+}
+
 export default function NotificationBell() {
   const { items, unread } = useSelector((state) => state.notifications);
   const dispatch = useDispatch();
@@ -59,8 +68,9 @@ export default function NotificationBell() {
       } catch {
       }
     }
-    if (notification?.link) {
-      router.push(notification.link);
+    const target = getNotificationTarget(notification);
+    if (target) {
+      router.push(target, { scroll: true });
     }
   };
 

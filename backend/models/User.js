@@ -40,6 +40,11 @@ const userSchema = new Schema(
       governorate: String,
       country: { type: String, default: 'Jordan' },
     },
+    pendingArtisanProfile: {
+      craftSpecialty: String,
+      governorate: String,
+      bio: String,
+    },
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
     isEmailVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },

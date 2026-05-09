@@ -6,6 +6,11 @@ import Badge from '../models/Badge.js';
 import { createError } from '../middleware/error.middleware.js';
 import { createAndEmitNotification } from '../services/notification.service.js';
 import { sendArtisanVerifiedEmail } from '../services/mailer.service.js';
+import {
+  getDefaultArtisanCoverImage,
+  isAutoArtisanCoverImage,
+  normalizeCraftSpecialty,
+} from '../utils/artisanProfileDefaults.js';
 
 const REGION_ALIASES = {
   'عمان': 'عمّان',
@@ -31,6 +36,14 @@ function normalizeRegion(region) {
   if (typeof region !== 'string') return region;
   const value = region.trim();
   return REGION_ALIASES[value] || value;
+}
+
+function resolveArtisanCoverImage(craftSpecialty, currentCoverImage) {
+  if (typeof currentCoverImage === 'string' && currentCoverImage.trim() && !isAutoArtisanCoverImage(currentCoverImage)) {
+    return currentCoverImage.trim();
+  }
+
+  return getDefaultArtisanCoverImage(craftSpecialty);
 }
 
 function buildEmptyDashboard() {
@@ -110,10 +123,15 @@ export async function applyAsArtisan(req, res, next) {
     if (existing) {
       return res.status(409).json({ message: 'You already have an artisan profile.' });
     }
+    const craftName = normalizeCraftSpecialty(
+      req.body.craftName || req.body.craftSpecialty || req.body.specialties?.[0]
+    );
     const artisan = await ArtisanProfile.create({
       user: req.user.userId,
       ...req.body,
+      ...(craftName ? { craftName, specialties: [craftName] } : {}),
       region: normalizeRegion(req.body.region),
+      coverImage: resolveArtisanCoverImage(craftName, req.body.coverImage),
       isVerified: false,
     });
     await User.findByIdAndUpdate(req.user.userId, { role: 'artisan' });
@@ -135,19 +153,14 @@ export async function updateCurrentArtisanProfile(req, res, next) {
 
     let artisan = await ArtisanProfile.findOne({ user: req.user.userId });
 
-    const craftName =
-      artisan?.craftName ||
-      (typeof craftSpecialty === 'string' && craftSpecialty.trim()) ||
-      user.name;
+    const incomingCraftSpecialty = normalizeCraftSpecialty(craftSpecialty);
+    const craftName = incomingCraftSpecialty || artisan?.craftName || user.name;
     const region = normalizeRegion(
       (typeof governorate === 'string' && governorate.trim()) ||
       artisan?.region ||
       user.address?.governorate
     );
-    const specialties =
-      typeof craftSpecialty === 'string' && craftSpecialty.trim()
-        ? [craftSpecialty.trim()]
-        : artisan?.specialties || [];
+    const specialties = incomingCraftSpecialty ? [incomingCraftSpecialty] : artisan?.specialties || [];
     const safeBio = typeof bio === 'string' ? bio.trim() : artisan?.bio || '';
 
     if (!artisan) {
@@ -160,6 +173,7 @@ export async function updateCurrentArtisanProfile(req, res, next) {
         bio: safeBio,
         region,
         specialties,
+        coverImage: resolveArtisanCoverImage(craftName, ''),
         isVerified: false,
       });
     } else {
@@ -167,6 +181,7 @@ export async function updateCurrentArtisanProfile(req, res, next) {
       if (craftName) artisan.craftName = craftName;
       if (region) artisan.region = region;
       artisan.specialties = specialties;
+      artisan.coverImage = resolveArtisanCoverImage(craftName, artisan.coverImage);
       await artisan.save();
     }
 
@@ -175,6 +190,9 @@ export async function updateCurrentArtisanProfile(req, res, next) {
     if (region) {
       user.address = user.address || {};
       user.address.governorate = region;
+    }
+    if (artisan) {
+      user.pendingArtisanProfile = undefined;
     }
     await user.save();
 

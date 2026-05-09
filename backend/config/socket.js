@@ -53,11 +53,19 @@ export function initSocket(io) {
                 timestamp: new Date(),
             });
             if (data.recipientId) {
+                const senderName = data.senderName || '\u0627\u0644\u0645\u0631\u0633\u0644';
+                const preview = data.preview ? `: ${data.preview}` : '';
                 io.to(`user:${data.recipientId}`).emit('notification:new', {
                     type: 'message',
-                    title: 'New message',
-                    body: data.preview || 'You have a new message',
-                    link: `/dashboard/customizations/${data.customizationId}`,
+                    title: '\u0631\u0633\u0627\u0644\u0629 \u062e\u0627\u0635\u0629 \u062c\u062f\u064a\u062f\u0629',
+                    body: `${senderName} \u0623\u0631\u0633\u0644 \u0644\u0643 \u0631\u0633\u0627\u0644\u0629 \u062e\u0627\u0635\u0629${preview}`,
+                    link: `/customizations?request=${data.customizationId}`,
+                    data: {
+                        requestId: data.customizationId,
+                        senderId: data.senderId,
+                        senderName,
+                        kind: 'private_message',
+                    },
                 });
             }
         });

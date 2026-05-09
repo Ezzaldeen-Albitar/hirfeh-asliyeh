@@ -219,7 +219,7 @@ export async function createProduct(req, res, next) {
   try {
     const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
     if (!artisanProfile) {
-      throw createError(404, 'Artisan profile not found. Please complete your artisan setup.');
+      throw createError(403, 'Artisan profile is incomplete. Open artisan dashboard settings and complete your profile first.');
     }
 
     const {

@@ -63,6 +63,14 @@ export async function createRequest(req, res, next) {
       requestedDeadline: deadline || undefined,
       referenceImages: referenceImages || [],
       basePrice: product?.price,
+      messages: [
+        {
+          sender: req.user.userId,
+          content: notes,
+          sentAt: new Date(),
+          isRead: false,
+        },
+      ],
     });
 
     const io = req.app.get('io');
@@ -74,7 +82,7 @@ export async function createRequest(req, res, next) {
         body: product
           ? `Customization request on product: ${product.title}`
           : 'Direct customization request from a customer',
-        link: `/dashboard/artisan/customizations`,
+        link: `/customizations?request=${request._id}`,
         data: { requestId: request._id },
       },
       io
@@ -254,12 +262,18 @@ export async function acceptQuote(req, res, next) {
 export async function sendMessage(req, res, next) {
   try {
     const { content } = req.body;
-    const request = await CustomizationRequest.findById(req.params.id).populate('customer artisan');
+    const request = await CustomizationRequest.findById(req.params.id)
+      .populate('customer', 'name avatar')
+      .populate({
+        path: 'artisan',
+        select: 'user craftName profileImage',
+        populate: { path: 'user', select: 'name avatar' },
+      });
 
     if (!request) throw createError(404, 'Request not found.');
 
     const isCustomer = request.customer._id.toString() === req.user.userId;
-    const isArtisan = request.artisan?.user?.toString() === req.user.userId;
+    const isArtisan = request.artisan?.user?._id?.toString() === req.user.userId;
     if (!isCustomer && !isArtisan && req.user.role !== 'admin') {
       throw createError(403, 'Forbidden.');
     }
@@ -285,19 +299,35 @@ export async function sendMessage(req, res, next) {
     });
 
     const recipientId = isCustomer
-      ? request.artisan?.user?.toString()
+      ? request.artisan?.user?._id?.toString()
       : request.customer?._id?.toString();
 
     if (recipientId && recipientId !== req.user.userId) {
+      const customerName = request.customer?.name || '\u0627\u0644\u0639\u0645\u064a\u0644';
+      const artisanName =
+        request.artisan?.craftName ||
+        request.artisan?.user?.name ||
+        '\u0627\u0644\u062d\u0631\u0641\u064a';
+      const senderName = isCustomer ? customerName : artisanName;
       const preview = content.trim().slice(0, 80);
+      const title = '\u0631\u0633\u0627\u0644\u0629 \u062e\u0627\u0635\u0629 \u062c\u062f\u064a\u062f\u0629';
+      const body = isCustomer
+        ? `${senderName} \u0623\u0631\u0633\u0644 \u0644\u0643 \u0631\u0633\u0627\u0644\u0629 \u062e\u0627\u0635\u0629${preview ? `: ${preview}` : ''}`
+        : `${senderName} \u0631\u062f \u0639\u0644\u0649 \u0631\u0633\u0627\u0644\u062a\u0643 \u0627\u0644\u062e\u0627\u0635\u0629${preview ? `: ${preview}` : ''}`;
+
       await createAndEmitNotification(
         recipientId,
         {
           type: 'message',
-          title: 'رسالة جديدة',
-          body: preview || 'لديك رسالة جديدة في طلب التخصيص',
-          link: isCustomer ? '/dashboard/artisan' : '/customizations',
-          data: { requestId: request._id },
+          title,
+          body,
+          link: `/customizations?request=${request._id}`,
+          data: {
+            requestId: request._id,
+            senderId: req.user.userId,
+            senderName,
+            kind: 'private_message',
+          },
         },
         io
       );

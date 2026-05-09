@@ -11,6 +11,11 @@ import {
 } from '../services/otp.service.js';
 import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailer.service.js';
 import { signTokenAndSetCookie, clearAuthCookie } from '../utils/jwt.js';
+import {
+  getDefaultArtisanCoverImage,
+  normalizeCraftSpecialty,
+  normalizeRegion,
+} from '../utils/artisanProfileDefaults.js';
 
 const canExposeDevOtp = process.env.NODE_ENV !== 'production';
 
@@ -23,6 +28,80 @@ function parseGoogleClientIds() {
     .flatMap((value) => value.split(','))
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+async function buildAuthUserPayload(user) {
+  const payload = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar: user.avatar,
+    isEmailVerified: user.isEmailVerified,
+  };
+
+  if (user.role !== 'artisan') {
+    return payload;
+  }
+
+  const artisanProfile = await ArtisanProfile.findOne({ user: user._id }).lean();
+  const pendingCraft = normalizeCraftSpecialty(user.pendingArtisanProfile?.craftSpecialty);
+
+  if (artisanProfile) {
+    payload.craftSpecialty = artisanProfile.craftName || artisanProfile.specialties?.[0] || pendingCraft || '';
+    payload.governorate = artisanProfile.region || normalizeRegion(user.address?.governorate || '');
+    payload.coverImage = artisanProfile.coverImage || getDefaultArtisanCoverImage(payload.craftSpecialty);
+    payload.artisanProfileId = artisanProfile._id;
+    return payload;
+  }
+
+  if (pendingCraft) {
+    payload.craftSpecialty = pendingCraft;
+    payload.governorate = normalizeRegion(
+      user.pendingArtisanProfile?.governorate || user.address?.governorate || ''
+    );
+    payload.coverImage = getDefaultArtisanCoverImage(pendingCraft);
+  }
+
+  return payload;
+}
+
+async function ensureArtisanProfileForVerifiedUser(user) {
+  if (user.role !== 'artisan') {
+    return null;
+  }
+
+  const existingProfile = await ArtisanProfile.findOne({ user: user._id });
+  if (existingProfile) {
+    return existingProfile;
+  }
+
+  const craftSpecialty = normalizeCraftSpecialty(user.pendingArtisanProfile?.craftSpecialty);
+  const region = normalizeRegion(
+    user.pendingArtisanProfile?.governorate || user.address?.governorate || ''
+  );
+  const bio = typeof user.pendingArtisanProfile?.bio === 'string'
+    ? user.pendingArtisanProfile.bio.trim()
+    : '';
+
+  if (!craftSpecialty || !region || !bio) {
+    return null;
+  }
+
+  const artisanProfile = await ArtisanProfile.create({
+    user: user._id,
+    craftName: craftSpecialty,
+    bio,
+    region,
+    specialties: [craftSpecialty],
+    coverImage: getDefaultArtisanCoverImage(craftSpecialty),
+    isVerified: false,
+  });
+
+  user.pendingArtisanProfile = undefined;
+  await user.save();
+
+  return artisanProfile;
 }
 
 async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
@@ -50,7 +129,7 @@ async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
 
 export async function register(req, res, next) {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, craftSpecialty, governorate, bio } = req.body;
     const safeRole = ['customer', 'artisan'].includes(role) ? role : 'customer';
     const existing = await User.findOne({ email });
     if (existing) {
@@ -62,6 +141,18 @@ export async function register(req, res, next) {
       email,
       password,
       role: safeRole,
+      ...(safeRole === 'artisan' && governorate
+        ? { address: { governorate: normalizeRegion(governorate) } }
+        : {}),
+      ...(safeRole === 'artisan'
+        ? {
+            pendingArtisanProfile: {
+              craftSpecialty: normalizeCraftSpecialty(craftSpecialty),
+              governorate: normalizeRegion(governorate),
+              bio: typeof bio === 'string' ? bio.trim() : '',
+            },
+          }
+        : {}),
       emailOtp: buildOTPDoc(otp),
     });
     const delivery = await deliverOtpEmail({ email, name, otp });
@@ -106,16 +197,10 @@ export async function login(req, res, next) {
       role: user.role,
       email: user.email,
     });
+    const authUser = await buildAuthUserPayload(user);
     return res.json({
       message: 'Logged in successfully.',
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        isEmailVerified: user.isEmailVerified,
-      },
+      user: authUser,
       token,
     });
   } catch (err) {
@@ -178,19 +263,16 @@ export async function verifyOTPHandler(req, res, next) {
       user.isEmailVerified = true;
       user.emailOtp = undefined;
       await user.save();
+      await ensureArtisanProfileForVerifiedUser(user);
       const token = signTokenAndSetCookie(res, {
         userId: user._id,
         role: user.role,
         email: user.email,
       });
+      const authUser = await buildAuthUserPayload(user);
       return res.json({
         message: 'Email verified successfully.',
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: authUser,
         token,
       });
     }

@@ -1,9 +1,9 @@
 'use client';
 import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Elements, CardCvcElement, CardExpiryElement, CardNumberElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useCart } from '@/hooks/useCart';
@@ -272,6 +272,7 @@ function StripeCheckoutActions({
 }
 
 function CheckoutPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { items, total, removeItem, updateQty, clearCart } = useCart();
   const { user } = useAuth();
@@ -293,6 +294,11 @@ function CheckoutPage() {
 
   const setShip = (key) => (e) => setShipping((current) => ({ ...current, [key]: e.target.value }));
   const isStripeConfigured = Boolean(stripePromise);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [step]);
 
   const handleOrder = async () => {
     try {
@@ -700,7 +706,7 @@ function CheckoutPage() {
 
 export default function Page() {
   return (
-    <AuthGuard>
+    <AuthGuard requiredRole="customer">
       <CheckoutPage />
     </AuthGuard>
   );

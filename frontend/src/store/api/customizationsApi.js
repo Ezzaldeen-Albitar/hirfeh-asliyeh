@@ -16,7 +16,7 @@ const formatMessageTime = (sentAt) => {
   }
 };
 
-const normalizeMessage = (message) => ({
+export const normalizeCustomizationMessage = (message) => ({
   ...message,
   message: message?.message ?? message?.content ?? '',
   time: message?.time ?? formatMessageTime(message?.sentAt),
@@ -38,7 +38,7 @@ const normalizeCustomization = (item) => ({
   description: item?.description ?? item?.customerNotes ?? '',
   budget: item?.budget ?? item?.requestedBudget,
   deadline: item?.deadline ?? item?.requestedDeadline,
-  messages: Array.isArray(item?.messages) ? item.messages.map(normalizeMessage) : [],
+  messages: Array.isArray(item?.messages) ? item.messages.map(normalizeCustomizationMessage) : [],
 });
 
 export const customizationsApi = baseApi.injectEndpoints({

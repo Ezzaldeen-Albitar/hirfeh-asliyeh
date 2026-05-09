@@ -3,9 +3,13 @@ import { useState, useRef, useEffect } from 'react';
 
 export default function CustomizationChat({ messages = [], onSend, disabled }) {
   const [text, setText] = useState('');
-  const bottomRef = useRef();
+  const messagesViewportRef = useRef(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTop = viewport.scrollHeight;
+  }, [messages]);
 
   const handleSend = () => {
     if (!text.trim() || disabled) return;
@@ -22,7 +26,11 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-grow-1 overflow-auto p-3" style={{gap:12,display:'flex',flexDirection:'column'}}>
+      <div
+        ref={messagesViewportRef}
+        className="flex-grow-1 overflow-auto p-3"
+        style={{gap:12,display:'flex',flexDirection:'column'}}
+      >
         {messages.length === 0 && (
           <div className="text-center my-auto" style={{color:'var(--warm-gray)'}}>
             <i className="bi bi-chat-square-text fs-2 d-block mb-2"/>
@@ -30,7 +38,10 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`d-flex ${m.isOwn ? 'justify-content-start' : 'justify-content-end'}`}>
+          <div
+            key={m._id || `${m.sentAt || m.time || i}-${m.message || m.content || ''}`}
+            className={`d-flex ${m.isOwn ? 'justify-content-start' : 'justify-content-end'}`}
+          >
             <div className="px-3 py-2" style={{
               maxWidth:'72%', borderRadius: m.isOwn ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
               background: m.isOwn ? 'var(--parchment)' : 'var(--burgundy)',
@@ -44,7 +55,6 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
             </div>
           </div>
         ))}
-        <div ref={bottomRef}/>
       </div>
 
       {/* Input */}
