@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // 1. إعدادات الصور (كما هي مع إضافة تحسينات طفيفة)
   images: {
     dangerouslyAllowSVG: true,
@@ -39,16 +40,10 @@ const nextConfig = {
   },
 
   // 4. تعطيل الميزات التجريبية التي تسبب مشاكل مع Middleware في نسخة 16
-  experimental: {
-    outputFileTracingRoot: undefined,
-  },
 
   // 5. تجنب أخطاء الفحص أثناء الرفع لتسريع العملية وتفادي الفشل المفاجئ
   typescript: {
     ignoreBuildErrors: true, 
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 };
 
