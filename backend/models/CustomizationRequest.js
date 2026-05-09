@@ -14,7 +14,6 @@ const customizationRequestSchema = new Schema(
     product: {
       type: Schema.Types.ObjectId,
       ref: 'Product',
-      required: true,
     },
     artisan: {
       type: Schema.Types.ObjectId,
@@ -36,6 +35,11 @@ const customizationRequestSchema = new Schema(
       type: String,
       maxlength: [1000, 'Notes must not exceed 1000 characters'],
     },
+    requestedBudget: {
+      type: Number,
+      min: 0,
+    },
+    requestedDeadline: Date,
     referenceImages: [String],
     basePrice: Number,
     customizationFee: Number,
@@ -58,7 +62,7 @@ const customizationRequestSchema = new Schema(
 );
 
 const VALID_TRANSITIONS = {
-  pending: ['quoted', 'cancelled'],
+  pending: ['quoted', 'in-progress', 'cancelled'],
   quoted: ['accepted', 'cancelled'],
   accepted: ['in-progress', 'cancelled'],
   'in-progress': ['completed', 'cancelled'],

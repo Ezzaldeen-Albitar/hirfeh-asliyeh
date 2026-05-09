@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
@@ -8,8 +9,8 @@ import Cookies from 'js-cookie';
 
 export function useSocket() {
   const socketRef = useRef(null);
-  const isAuth    = useSelector(selectIsAuth);
-  const dispatch  = useDispatch();
+  const isAuth = useSelector(selectIsAuth);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (!isAuth) {
@@ -19,40 +20,20 @@ export function useSocket() {
     }
 
     const token = Cookies.get('token');
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL;
+    if (!socketUrl) {
+      return;
+    }
+
+    const socket = io(socketUrl, {
       auth: { token },
-      transports: ['websocket'],
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;
 
-    // ✅ FIX 2: اسمع على الـ events واحفظ الإشعارات في الـ store
-    // غيّر أسماء الـ events حسب ما يرسله السيرفر عندك
-    socket.on('notification', (data) => {
-      dispatch(addNotification({
-        message: data.message || data.title || 'إشعار جديد',
-        time:    data.time    || new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-        read:    false,
-        type:    data.type   || 'general',
-      }));
-    });
-
-    // أحداث شائعة — أضف أو احذف حسب السيرفر
-    socket.on('order:updated', (data) => {
-      dispatch(addNotification({
-        message: `تم تحديث حالة طلبك إلى: ${data.status || ''}`,
-        time:    new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-        read:    false,
-        type:    'order',
-      }));
-    });
-
-    socket.on('customization:message', (data) => {
-      dispatch(addNotification({
-        message: `رسالة جديدة في طلب التخصيص`,
-        time:    new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-        read:    false,
-        type:    'customization',
-      }));
+    socket.on('notification:new', (data) => {
+      dispatch(addNotification(data));
     });
 
     socket.on('connect_error', (err) => {

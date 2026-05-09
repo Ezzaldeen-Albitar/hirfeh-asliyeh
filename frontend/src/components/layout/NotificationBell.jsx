@@ -1,14 +1,67 @@
 'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
-import { markAllRead } from '@/store/slices/notificationSlice';
+import {
+  markAllRead,
+  markRead,
+  setNotifications,
+} from '@/store/slices/notificationSlice';
+import {
+  useGetNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+} from '@/store/api/notificationsApi';
+
+function formatTime(value) {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString('ar-EG', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
 
 export default function NotificationBell() {
-  const { items, unread } = useSelector(s => s.notifications);
+  const { items, unread } = useSelector((state) => state.notifications);
   const dispatch = useDispatch();
+  const router = useRouter();
+  const { data } = useGetNotificationsQuery();
+  const [markAllNotificationsRead] = useMarkAllNotificationsReadMutation();
+  const [markNotificationRead] = useMarkNotificationReadMutation();
 
-  // نمسح الـ badge فقط لما المستخدم يفتح القائمة فعلياً (show.bs.dropdown)
-  const handleToggle = () => {
-    if (unread > 0) dispatch(markAllRead());
+  useEffect(() => {
+    if (data?.notifications) {
+      dispatch(setNotifications(data.notifications));
+    }
+  }, [data, dispatch]);
+
+  const handleMarkAllRead = async () => {
+    if (unread <= 0) return;
+    dispatch(markAllRead());
+    try {
+      await markAllNotificationsRead().unwrap();
+    } catch {
+    }
+  };
+
+  const handleOpenNotification = async (notification) => {
+    if (!notification?.read && !notification?.isRead && notification?._id) {
+      dispatch(markRead(notification._id));
+      try {
+        await markNotificationRead(notification._id).unwrap();
+      } catch {
+      }
+    }
+    if (notification?.link) {
+      router.push(notification.link);
+    }
   };
 
   return (
@@ -18,7 +71,6 @@ export default function NotificationBell() {
         data-bs-toggle="dropdown"
         aria-label="الإشعارات"
         suppressHydrationWarning
-        onClick={handleToggle}
       >
         <i className="bi bi-bell" />
         {unread > 0 && (
@@ -33,17 +85,17 @@ export default function NotificationBell() {
 
       <div
         className="dropdown-menu dropdown-menu-start p-0 border-0 shadow"
-        style={{ borderRadius: 14, minWidth: 300, maxHeight: 380, overflowY: 'auto' }}
+        style={{ borderRadius: 14, minWidth: 320, maxHeight: 380, overflowY: 'auto' }}
       >
         <div
           className="p-3 border-bottom d-flex justify-content-between align-items-center"
           style={{ borderColor: 'var(--stone)' }}
         >
           <strong style={{ fontFamily: 'Amiri,serif', fontSize: '1rem' }}>الإشعارات</strong>
-          {items.some(n => !n.read) && (
+          {items.some((notification) => !(notification.read || notification.isRead)) && (
             <small
               style={{ color: 'var(--burgundy)', cursor: 'pointer', fontWeight: 600 }}
-              onClick={() => dispatch(markAllRead())}
+              onClick={handleMarkAllRead}
             >
               تحديد الكل كمقروء
             </small>
@@ -56,20 +108,27 @@ export default function NotificationBell() {
             لا توجد إشعارات
           </div>
         ) : (
-          items.slice(0, 8).map((n) => (
-            <div
-              // ✅ FIX 5: استخدم معرف فريد بدل الـ index
-              key={n._id || n.message + n.time}
-              className="p-3 border-bottom"
+          items.slice(0, 8).map((notification) => (
+            <button
+              key={notification._id || `${notification.message}-${notification.time}`}
+              type="button"
+              className="w-100 text-start p-3 border-bottom bg-transparent"
+              onClick={() => handleOpenNotification(notification)}
               style={{
-                background: n.read ? '#fff' : 'rgba(184,150,60,0.06)',
+                background: notification.read || notification.isRead ? '#fff' : 'rgba(184,150,60,0.06)',
                 borderColor: 'var(--gold-pale)',
                 fontSize: '0.85rem',
+                borderInline: 'none',
               }}
             >
-              <div className="fw-500">{n.message}</div>
-              {n.time && <small style={{ color: 'var(--warm-gray)' }}>{n.time}</small>}
-            </div>
+              <div className="fw-500">{notification.title || notification.message}</div>
+              {notification.body && (
+                <div style={{ color: 'var(--warm-gray)', marginTop: 4 }}>{notification.body}</div>
+              )}
+              <small style={{ color: 'var(--warm-gray)' }}>
+                {formatTime(notification.createdAt || notification.time)}
+              </small>
+            </button>
           ))
         )}
       </div>

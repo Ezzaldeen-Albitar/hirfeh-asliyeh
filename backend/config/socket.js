@@ -7,8 +7,10 @@ export function initSocket(io) {
             const tokenCookie = cookieHeader
                 .split('; ')
                 .find(c => c.startsWith('token='));
-            if (tokenCookie) {
-                const token = tokenCookie.split('=')[1];
+            const token = tokenCookie?.split('=')[1]
+                || socket.handshake.auth?.token
+                || socket.handshake.headers.authorization?.replace(/^Bearer\s+/i, '');
+            if (token) {
                 socket.user = jwt.verify(token, process.env.JWT_SECRET);
             }
         } catch {

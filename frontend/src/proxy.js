@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 const PROTECTED = ['/dashboard', '/checkout', '/customizations'];
 
 // ✅ Next.js 16: export must be named "proxy" (not "middleware")
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('token')?.value;
 

@@ -37,7 +37,7 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
               color: m.isOwn ? 'var(--charcoal)' : '#fff',
               fontSize:'0.88rem', lineHeight:1.6,
             }}>
-              {m.message}
+              {m.message || m.content}
               {m.time && (
                 <div style={{fontSize:'0.68rem',opacity:.65,marginTop:3,textAlign:'left'}}>{m.time}</div>
               )}

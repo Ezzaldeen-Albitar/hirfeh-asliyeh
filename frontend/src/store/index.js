@@ -12,6 +12,7 @@ import './api/artisansApi';
 import './api/ordersApi';
 import './api/reviewsApi';
 import './api/customizationsApi';
+import './api/notificationsApi';
 import './api/workshopsApi';
 import './api/adminApi';
 import './api/wishlistApi';

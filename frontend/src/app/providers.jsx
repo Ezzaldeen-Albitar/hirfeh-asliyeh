@@ -5,6 +5,7 @@ import { Provider }  from 'react-redux';
 import { store }     from '@/store';
 import { hydrateAuth } from '@/store/slices/authSlice';
 import { hydrateCart } from '@/store/slices/cartSlice';
+import { useSocket } from '@/hooks/useSocket';
 import Cookies from 'js-cookie';
 
 function HydrateStore() {
@@ -40,11 +41,17 @@ function HydrateStore() {
   return null;
 }
 
+function SocketBootstrap() {
+  useSocket();
+  return null;
+}
+
 export default function Providers({ children }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   const content = (
     <Provider store={store}>
       <HydrateStore />
+      <SocketBootstrap />
       {children}
     </Provider>
   );
