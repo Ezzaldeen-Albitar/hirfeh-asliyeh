@@ -21,7 +21,6 @@ const nextConfig = {
   },
 
   // 2. حل مشكلة الملفات المفقودة (ENOENT) وتحسين الرفع على Vercel
-  output: 'standalone', 
   
   // 3. إعدادات الـ Rewrites للربط مع الباك أند على Render
   async rewrites() {
