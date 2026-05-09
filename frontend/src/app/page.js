@@ -1,2 +1,10 @@
-// تصدير الصفحة الرئيسية الحقيقية من route group (main)
-export { default } from './(main)/page';
+import MainShell from '@/components/layout/MainShell';
+import HomePage from '@/components/home/HomePage';
+
+export default function Page() {
+  return (
+    <MainShell>
+      <HomePage />
+    </MainShell>
+  );
+}
