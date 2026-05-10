@@ -278,7 +278,6 @@ export default function LoginPage() {
                     الاستمرار باستخدام Google
                   </button>
                   <small className="d-block text-center mt-2" style={{ color: 'var(--warm-gray)' }}>
-                    أضف `NEXT_PUBLIC_GOOGLE_CLIENT_ID` في الفرونت و`GOOGLE_CLIENT_ID` في الباكند لتفعيل Google.
                   </small>
                 </div>
               )}
