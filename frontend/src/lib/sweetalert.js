@@ -7,8 +7,6 @@ const base = {
     cancelButton:  'btn btn-outline-secondary px-4 ms-2',
   },
   buttonsStyling: false,
-  // fontFamily is not a valid SweetAlert2 parameter — use CSS instead:
-  // .ha-toast { font-family: 'Tajawal', sans-serif; }
 };
 
 export const toast = {

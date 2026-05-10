@@ -32,7 +32,6 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    // إضافة المنتج مرة واحدة بالكمية المحددة (بدل loop)
     addItemWithQty(product, qty);
     toast.success(`تمت إضافة "${product.name}" (${qty}) إلى السلة ✓`);
   };
@@ -104,7 +103,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="bg-cream">
-      {/* Breadcrumb */}
       <div style={{ background: 'var(--parchment)', borderBottom: '1px solid var(--gold-pale)', padding: '14px 0' }}>
         <div className="container">
           <ol className="breadcrumb mb-0" style={{ fontSize: '0.82rem' }}>
@@ -128,18 +126,15 @@ export default function ProductDetailPage() {
 
       <div className="container" style={{ padding: '48px 12px' }}>
         <div className="row g-5">
-          {/* Images */}
           <div className="col-lg-5">
             <ProductImages images={product.images} />
           </div>
 
-          {/* Details */}
           <div className="col-lg-7">
             <h1 style={{ fontFamily: 'Amiri,serif', fontSize: '2.2rem', color: 'var(--charcoal)', lineHeight: 1.2, marginBottom: 8 }}>
               {product.name}
             </h1>
 
-            {/* Artisan card */}
             {product.artisan && (
               <Link href={`/artisans/${product.artisan._id}`}
                 className="d-flex align-items-center gap-3 mb-4 text-decoration-none ha-card p-3">
@@ -164,7 +159,6 @@ export default function ProductDetailPage() {
               </Link>
             )}
 
-            {/* Price */}
             <div style={{ fontFamily: 'Playfair Display,serif', fontSize: '2.2rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: 8 }}>
               <small style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--warm-gray)', marginLeft: 4 }}>د.أ</small>
               {product.price}
@@ -175,18 +169,15 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Rating */}
             <div className="d-flex align-items-center gap-2 mb-3">
               <StarRating value={product.avgRating || 0} />
               <small style={{ color: 'var(--warm-gray)' }}>({reviews.length} تقييم)</small>
             </div>
 
-            {/* Description */}
             <p style={{ color: 'var(--warm-gray)', lineHeight: 1.9, marginBottom: 24, fontSize: '0.95rem' }}>
               {product.description}
             </p>
 
-            {/* Stock indicator */}
             {product.stock !== undefined && (
               <div className="mb-3">
                 <span style={{
@@ -203,7 +194,6 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Qty + Cart */}
             <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
               <div className="d-flex align-items-center"
                 style={{ border: '1.5px solid var(--stone)', borderRadius: 10, overflow: 'hidden' }}>
@@ -233,7 +223,6 @@ export default function ProductDetailPage() {
               <i className="bi bi-lightning-fill" />اشتر الآن
             </button>
 
-            {/* Tags */}
             <div className="d-flex gap-2 flex-wrap mt-3">
               {product.craftType && <span className="badge-certified">{product.craftType}</span>}
               <span style={{ background: 'rgba(122,28,46,.1)', color: 'var(--burgundy)', borderRadius: 20, padding: '3px 12px', fontSize: '0.75rem', fontWeight: 600 }}>
@@ -246,15 +235,12 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Origin Story */}
         <OriginStorySection product={product} />
 
-        {/* Reviews */}
         <div className="mt-5">
           <h3 className="section-title">آراء <span>العملاء</span></h3>
           <div className="gold-divider" style={{ margin: '0 0 32px' }} />
 
-          {/* Review form */}
           {isAuth && (
             <div className="ha-card p-4 mb-4">
               <h6 style={{ fontFamily: 'Amiri,serif', fontSize: '1.1rem', marginBottom: 16 }}>أضف تقييمك</h6>
@@ -276,7 +262,6 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {/* Reviews list */}
           {reviews.length === 0 ? (
             <div className="text-center py-4" style={{ color: 'var(--warm-gray)' }}>
               <i className="bi bi-chat-square-text fs-2 d-block mb-2" />

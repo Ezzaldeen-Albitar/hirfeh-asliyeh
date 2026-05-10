@@ -7,10 +7,8 @@ const save = (items) => {
 
 const cartSlice = createSlice({
   name: 'cart',
-  // initialState دايماً فارغ (SSR-safe) — الـ hydration يصير في useEffect
   initialState: { items: [], hydrated: false },
   reducers: {
-    // يُستدعى من useEffect على الكلاينت فقط
     hydrateCart: (state, { payload }) => {
       state.items    = payload;
       state.hydrated = true;

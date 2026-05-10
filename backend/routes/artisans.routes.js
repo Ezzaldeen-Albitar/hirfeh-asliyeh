@@ -4,7 +4,6 @@ import * as artisansController from '../controllers/artisans.controller.js';
 
 const router = Router();
 
-// ✅ Static routes MUST come before dynamic /:id routes
 router.get('/featured', artisansController.getFeaturedArtisans);
 router.get('/dashboard', verifyToken, requireRole('artisan'), artisansController.getCurrentArtisanDashboard);
 router.get('/', artisansController.getArtisans);

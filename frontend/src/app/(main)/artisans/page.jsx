@@ -15,9 +15,9 @@ export default function ArtisansPage() {
 
   const params = {
     page, limit: 12,
-    ...(gov   !== 'الكل' && { governorate:   gov }),
-    ...(craft !== 'الكل' && { craftSpecialty: craft }),
-    ...(search && { search }),
+    ...(gov   !== 'الكل' && { region: gov }),
+    ...(craft !== 'الكل' && { specialties: craft }),
+    ...(search.trim() && { search: search.trim() }),
   };
 
   const { data, isLoading, isFetching } = useGetArtisansQuery(params);
@@ -37,7 +37,6 @@ export default function ArtisansPage() {
       </div>
 
       <div className="container" style={{padding:'40px 12px 60px'}}>
-        {/* Filters */}
         <div className="ha-card p-3 mb-4">
           <div className="row g-3 align-items-center">
             <div className="col-md-4">
@@ -65,7 +64,6 @@ export default function ArtisansPage() {
           </div>
         </div>
 
-        {/* Grid */}
         {isLoading || isFetching ? (
           <div className="row g-4">
             {[...Array(6)].map((_,i)=>(

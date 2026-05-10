@@ -6,7 +6,6 @@ import * as authController from '../controllers/auth.controller.js';
 
 const router = Router();
 
-// Middleware to check validation results and return errors
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -15,11 +14,10 @@ const validate = (req, res, next) => {
   next();
 };
 
-// ✅ RELAXED Rate Limit: More attempts allowed to prevent frustration
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 15, // ✅ Increased from 3 to 15 attempts
-  message: { message: 'Too many OTP requests. Please wait 10 minutes.' },
+  message: { message: 'طلبات كثيرة لرمز التحقق. يرجى الانتظار 10 دقائق.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => process.env.NODE_ENV === 'development', // Skip in dev
@@ -46,7 +44,6 @@ router.post(
   authController.login
 );
 
-// Logout does NOT require a valid token — it just clears the cookie
 router.post('/logout', authController.logout);
 router.get('/me', verifyToken, authController.getMe);
 

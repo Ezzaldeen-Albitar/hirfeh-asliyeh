@@ -49,7 +49,7 @@ const productSchema = new Schema(
       required: [true, 'At least one image is required'],
       validate: {
         validator: (v) => v.length >= 1,
-        message: 'At least one image is required',
+        message: 'صورة واحدة على الأقل مطلوبة',
       },
     },
     thumbnailIndex: { type: Number, default: 0 },

@@ -19,7 +19,7 @@ export async function getWishlist(req, res, next) {
       })
       .lean();
 
-    if (!user) throw createError(404, 'User not found.');
+    if (!user) throw createError(404, 'المستخدم غير موجود.');
 
     return res.json({ wishlist: user.wishlist || [] });
   } catch (err) {
@@ -30,24 +30,24 @@ export async function getWishlist(req, res, next) {
 export async function addToWishlist(req, res, next) {
   try {
     const { productId } = req.body;
-    if (!productId) throw createError(400, 'productId is required.');
+    if (!productId) throw createError(400, 'معرّف المنتج مطلوب.');
 
     const product = await Product.findOne({ _id: productId, isActive: true });
-    if (!product) throw createError(404, 'Product not found.');
+    if (!product) throw createError(404, 'المنتج غير موجود.');
 
     const user = await User.findById(req.user.userId);
-    if (!user) throw createError(404, 'User not found.');
+    if (!user) throw createError(404, 'المستخدم غير موجود.');
 
     const alreadyExists = user.wishlist.some((id) => id.toString() === productId);
     if (alreadyExists) {
-      return res.status(409).json({ message: 'Product already in wishlist.' });
+      return res.status(409).json({ message: 'المنتج موجود في المفضلة مسبقاً.' });
     }
 
     user.wishlist.push(product._id);
     await user.save();
 
     return res.status(201).json({
-      message: 'Product added to wishlist.',
+      message: 'تمت إضافة المنتج إلى المفضلة.',
       productId: product._id,
     });
   } catch (err) {
@@ -59,13 +59,13 @@ export async function removeFromWishlist(req, res, next) {
   try {
     const { productId } = req.params;
     const user = await User.findById(req.user.userId);
-    if (!user) throw createError(404, 'User not found.');
+    if (!user) throw createError(404, 'المستخدم غير موجود.');
 
     user.wishlist = user.wishlist.filter((id) => id.toString() !== productId);
     await user.save();
 
     return res.json({
-      message: 'Product removed from wishlist.',
+      message: 'تمت إزالة المنتج من المفضلة.',
       productId,
     });
   } catch (err) {

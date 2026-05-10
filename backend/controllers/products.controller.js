@@ -189,7 +189,7 @@ export async function getProduct(req, res, next) {
       .populate('originStory')
       .populate('collectionId', 'name nameAr description coverImage');
 
-    if (!product) throw createError(404, 'Product not found.');
+    if (!product) throw createError(404, 'المنتج غير موجود.');
 
     Product.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }).exec();
     return res.json({ product });
@@ -219,7 +219,7 @@ export async function createProduct(req, res, next) {
   try {
     const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
     if (!artisanProfile) {
-      throw createError(403, 'Artisan profile is incomplete. Open artisan dashboard settings and complete your profile first.');
+      throw createError(403, 'ملف الحرفي غير مكتمل. افتح إعدادات لوحة الحرفي وأكمل ملفك أولاً.');
     }
 
     const {
@@ -298,7 +298,7 @@ export async function createProduct(req, res, next) {
       product.originStory = originStory._id;
     }
 
-    return res.status(201).json({ message: 'Product created successfully.', product });
+    return res.status(201).json({ message: 'تم إنشاء المنتج بنجاح.', product });
   } catch (err) {
     next(err);
   }
@@ -307,12 +307,12 @@ export async function createProduct(req, res, next) {
 export async function updateProduct(req, res, next) {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) throw createError(404, 'Product not found.');
+    if (!product) throw createError(404, 'المنتج غير موجود.');
 
     if (req.user.role !== 'admin') {
       const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
       if (!artisanProfile || !product.artisan.equals(artisanProfile._id)) {
-        throw createError(403, 'You do not own this product.');
+        throw createError(403, 'هذا المنتج ليس لك.');
       }
     }
 
@@ -333,7 +333,7 @@ export async function updateProduct(req, res, next) {
       runValidators: true,
     });
 
-    return res.json({ message: 'Product updated.', product: updated });
+    return res.json({ message: 'تم تحديث المنتج.', product: updated });
   } catch (err) {
     next(err);
   }
@@ -342,17 +342,17 @@ export async function updateProduct(req, res, next) {
 export async function deleteProduct(req, res, next) {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) throw createError(404, 'Product not found.');
+    if (!product) throw createError(404, 'المنتج غير موجود.');
 
     if (req.user.role !== 'admin') {
       const artisanProfile = await ArtisanProfile.findOne({ user: req.user.userId });
       if (!artisanProfile || !product.artisan.equals(artisanProfile._id)) {
-        throw createError(403, 'You do not own this product.');
+        throw createError(403, 'هذا المنتج ليس لك.');
       }
     }
 
     await Product.findByIdAndDelete(req.params.id);
-    return res.json({ message: 'Product deleted successfully.' });
+    return res.json({ message: 'تم حذف المنتج بنجاح.' });
   } catch (err) {
     next(err);
   }
@@ -361,7 +361,7 @@ export async function deleteProduct(req, res, next) {
 export async function toggleFeatured(req, res, next) {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) throw createError(404, 'Product not found.');
+    if (!product) throw createError(404, 'المنتج غير موجود.');
 
     product.isFeatured = !product.isFeatured;
     await product.save();

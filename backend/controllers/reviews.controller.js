@@ -22,7 +22,6 @@ export async function createReview(req, res, next) {
         status: 'delivered',
       });
     } else {
-      // Support the current frontend flow which only knows the product id.
       const deliveredOrders = await Order.find({
         customer: req.user.userId,
         status: 'delivered',
@@ -46,11 +45,11 @@ export async function createReview(req, res, next) {
     }
 
     if (!order) {
-      throw createError(400, 'You can only review products from delivered orders.');
+      throw createError(400, 'يمكنك تقييم المنتجات من الطلبات المسلمة فقط.');
     }
     const orderItem = order.items.find(i => i.product.toString() === productId);
     if (!orderItem) {
-      throw createError(400, 'This product was not in the specified order.');
+      throw createError(400, 'هذا المنتج غير موجود في الطلب المحدد.');
     }
     const existingReview = await Review.findOne({
       reviewer: req.user.userId,
@@ -58,7 +57,7 @@ export async function createReview(req, res, next) {
       order: order._id,
     });
     if (existingReview) {
-      throw createError(409, 'You have already reviewed this product for this order.');
+      throw createError(409, 'قيّمت هذا المنتج لهذا الطلب مسبقاً.');
     }
     const review = await Review.create({
       reviewer: req.user.userId,
@@ -74,7 +73,7 @@ export async function createReview(req, res, next) {
     });
     await recalculateProductRating(Product, productId);
     await recalculateArtisanRating(ArtisanProfile, orderItem.artisan);
-    return res.status(201).json({ message: 'Review submitted.', review });
+    return res.status(201).json({ message: 'تم إرسال التقييم.', review });
   } catch (err) {
     next(err);
   }
@@ -111,13 +110,13 @@ export async function replyToReview(req, res, next) {
   try {
     const { content } = req.body;
     const review = await Review.findById(req.params.id);
-    if (!review) throw createError(404, 'Review not found.');
+    if (!review) throw createError(404, 'التقييم غير موجود.');
     if (review.artisanReply?.content) {
-      throw createError(409, 'You have already replied to this review.');
+      throw createError(409, 'تم الرد على هذا التقييم مسبقاً.');
     }
     review.artisanReply = { content, repliedAt: new Date() };
     await review.save();
-    return res.json({ message: 'Reply posted.', review });
+    return res.json({ message: 'تم نشر الرد.', review });
   } catch (err) {
     next(err);
   }
@@ -125,12 +124,12 @@ export async function replyToReview(req, res, next) {
 export async function deleteReview(req, res, next) {
   try {
     const review = await Review.findById(req.params.id);
-    if (!review) throw createError(404, 'Review not found.');
+    if (!review) throw createError(404, 'التقييم غير موجود.');
     review.isVisible = false;
     await review.save();
     await recalculateProductRating(Product, review.product);
     await recalculateArtisanRating(ArtisanProfile, review.artisan);
-    return res.json({ message: 'Review hidden.' });
+    return res.json({ message: 'تم إخفاء التقييم.' });
   } catch (err) {
     next(err);
   }

@@ -5,7 +5,7 @@ import { createError } from '../middleware/error.middleware.js';
 
 async function resolveArtisan(userId) {
     const profile = await ArtisanProfile.findOne({ user: userId });
-    if (!profile) throw createError(404, 'Artisan profile not found.');
+    if (!profile) throw createError(404, 'ملف الحرفي غير موجود.');
     return profile;
 }
 
@@ -45,7 +45,7 @@ export async function getCollection(req, res, next) {
             _id: req.params.id,
             isActive: true,
         }).populate('artisan', 'craftName region profileImage isVerified rating badges');
-        if (!collection) throw createError(404, 'Collection not found.');
+        if (!collection) throw createError(404, 'المجموعة غير موجودة.');
         const products = await Product.find({
             collectionId: collection._id,
             isActive: true,
@@ -70,7 +70,7 @@ export async function createCollection(req, res, next) {
             description,
             coverImage,
         });
-        return res.status(201).json({ message: 'Collection created.', collection });
+        return res.status(201).json({ message: 'تم إنشاء المجموعة.', collection });
     } catch (err) {
         next(err);
     }
@@ -78,11 +78,11 @@ export async function createCollection(req, res, next) {
 export async function updateCollection(req, res, next) {
     try {
         const collection = await CraftCollection.findById(req.params.id);
-        if (!collection) throw createError(404, 'Collection not found.');
+        if (!collection) throw createError(404, 'المجموعة غير موجودة.');
         if (req.user.role !== 'admin') {
             const artisanProfile = await resolveArtisan(req.user.userId);
             if (!collection.artisan.equals(artisanProfile._id)) {
-                throw createError(403, 'You do not own this collection.');
+                throw createError(403, 'هذه المجموعة ليست لك.');
             }
         }
         const { name, nameAr, description, coverImage } = req.body;
@@ -91,7 +91,7 @@ export async function updateCollection(req, res, next) {
         if (description !== undefined) collection.description = description;
         if (coverImage !== undefined) collection.coverImage = coverImage;
         await collection.save();
-        return res.json({ message: 'Collection updated.', collection });
+        return res.json({ message: 'تم تحديث المجموعة.', collection });
     } catch (err) {
         next(err);
     }
@@ -99,17 +99,17 @@ export async function updateCollection(req, res, next) {
 export async function deleteCollection(req, res, next) {
     try {
         const collection = await CraftCollection.findById(req.params.id);
-        if (!collection) throw createError(404, 'Collection not found.');
+        if (!collection) throw createError(404, 'المجموعة غير موجودة.');
         if (req.user.role !== 'admin') {
             const artisanProfile = await resolveArtisan(req.user.userId);
             if (!collection.artisan.equals(artisanProfile._id)) {
-                throw createError(403, 'You do not own this collection.');
+                throw createError(403, 'هذه المجموعة ليست لك.');
             }
         }
         await Product.updateMany({ collectionId: collection._id }, { $unset: { collectionId: '' } });
         collection.isActive = false;
         await collection.save();
-        return res.json({ message: 'Collection deleted.' });
+        return res.json({ message: 'تم حذف المجموعة.' });
     } catch (err) {
         next(err);
     }
@@ -121,20 +121,20 @@ export async function addProductToCollection(req, res, next) {
             _id: req.params.id,
             isActive: true,
         });
-        if (!collection) throw createError(404, 'Collection not found.');
+        if (!collection) throw createError(404, 'المجموعة غير موجودة.');
         const artisanProfile = await resolveArtisan(req.user.userId);
         if (!collection.artisan.equals(artisanProfile._id)) {
-            throw createError(403, 'You do not own this collection.');
+            throw createError(403, 'هذه المجموعة ليست لك.');
         }
         const product = await Product.findOne({
             _id: req.params.productId,
             artisan: artisanProfile._id,
             isActive: true,
         });
-        if (!product) throw createError(404, 'Product not found or not yours.');
+        if (!product) throw createError(404, 'المنتج غير موجود أو ليس لك.');
 
         if (product.collectionId && product.collectionId.equals(collection._id)) {
-            throw createError(409, 'Product is already in this collection.');
+            throw createError(409, 'المنتج موجود في هذه المجموعة مسبقاً.');
         }
         if (product.collectionId) {
             await CraftCollection.findByIdAndUpdate(product.collectionId, {
@@ -146,7 +146,7 @@ export async function addProductToCollection(req, res, next) {
         await CraftCollection.findByIdAndUpdate(collection._id, {
             $inc: { productCount: 1 },
         });
-        return res.json({ message: 'Product added to collection.' });
+        return res.json({ message: 'تمت إضافة المنتج إلى المجموعة.' });
     } catch (err) {
         next(err);
     }
@@ -158,23 +158,23 @@ export async function removeProductFromCollection(req, res, next) {
             _id: req.params.id,
             isActive: true,
         });
-        if (!collection) throw createError(404, 'Collection not found.');
+        if (!collection) throw createError(404, 'المجموعة غير موجودة.');
         const artisanProfile = await resolveArtisan(req.user.userId);
         if (!collection.artisan.equals(artisanProfile._id)) {
-            throw createError(403, 'You do not own this collection.');
+            throw createError(403, 'هذه المجموعة ليست لك.');
         }
         const product = await Product.findOne({
             _id: req.params.productId,
             artisan: artisanProfile._id,
             collectionId: collection._id,
         });
-        if (!product) throw createError(404, 'Product not found in this collection.');
+        if (!product) throw createError(404, 'المنتج غير موجود في هذه المجموعة.');
         product.collectionId = undefined;
         await product.save();
         await CraftCollection.findByIdAndUpdate(collection._id, {
             $inc: { productCount: -1 },
         });
-        return res.json({ message: 'Product removed from collection.' });
+        return res.json({ message: 'تمت إزالة المنتج من المجموعة.' });
     } catch (err) {
         next(err);
     }

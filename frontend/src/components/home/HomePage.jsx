@@ -28,7 +28,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Hero */}
       <section className="hero-section">
         <div className="hero-bg" />
         <div className="container hero-content w-100">
@@ -64,7 +63,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it works */}
       <section className="section-py">
         <div className="container">
           <div className="text-center mb-5">
@@ -91,7 +89,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Craft Categories */}
       <section className="section-py bg-parchment">
         <div className="container">
           <div className="text-center mb-5">
@@ -118,7 +115,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Artisans */}
       <section className="section-py" id="artisans">
         <div className="container">
           <div className="d-flex justify-content-between align-items-end mb-5">
@@ -144,7 +140,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products */}
       <section className="section-py bg-parchment">
         <div className="container">
           <div className="d-flex justify-content-between align-items-end mb-5">
@@ -170,7 +165,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Banner */}
       <section style={{ background: 'linear-gradient(135deg,var(--burgundy-dark) 0%,var(--burgundy) 50%,var(--burgundy-light) 100%)', padding: '80px 0', overflow: 'hidden' }}>
         <div className="container">
           <div className="row align-items-center">

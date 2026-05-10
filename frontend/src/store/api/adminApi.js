@@ -3,7 +3,6 @@ import { baseApi } from './baseApi';
 export const adminApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    // Get dashboard statistics
     getAdminStats: builder.query({
       query: () => '/admin/stats',
       transformResponse: (response) => ({
@@ -14,7 +13,6 @@ export const adminApi = baseApi.injectEndpoints({
       }),
     }),
 
-    // Get all users with pagination and search
     getAllUsers: builder.query({
       query: (params) => ({ url: '/admin/users', params }),
       transformResponse: (response) => ({
@@ -24,19 +22,16 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Users'],
     }),
 
-    // Update user role
     updateUserRole: builder.mutation({
       query: ({ id, role }) => ({ url: `/admin/users/${id}/role`, method: 'PATCH', body: { role } }),
       invalidatesTags: ['Users'],
     }),
 
-    // Delete user
     deleteUser: builder.mutation({
       query: (id) => ({ url: `/admin/users/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Users'],
     }),
 
-    // Get all orders with pagination
     getAllOrders: builder.query({
       query: (params) => ({ url: '/admin/orders', params }),
       transformResponse: (response) => ({
@@ -46,7 +41,6 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Orders'],
     }),
 
-    // Get all products with pagination
     getAllAdminProducts: builder.query({
       query: (params) => ({ url: '/admin/products', params }),
       transformResponse: (response) => ({
@@ -56,19 +50,25 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Products'],
     }),
 
-    // Get all badges
+    getAdminWorkshops: builder.query({
+      query: (params) => ({ url: '/admin/workshops', params }),
+      transformResponse: (response) => ({
+        data: response.sessions,
+        pagination: response.pagination,
+      }),
+      providesTags: ['Workshops'],
+    }),
+
     getBadges: builder.query({
       query: () => '/admin/badges',
       providesTags: ['Badges'],
     }),
 
-    // Assign badge to artisan
     assignBadge: builder.mutation({
       query: (body) => ({ url: '/admin/badges/assign', method: 'POST', body }),
       invalidatesTags: ['Badges', 'Artisans'],
     }),
 
-    // Get pending artisans (not verified)
     getPendingArtisans: builder.query({
       query: (params) => ({ url: '/admin/artisans/pending', params }),
       transformResponse: (response) => ({
@@ -78,14 +78,11 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Artisans'],
     }),
 
-    // Approve artisan (verify)
-    // Note: Ensure backend has PUT /api/admin/artisans/:id/verify
     approveArtisan: builder.mutation({
       query: (id) => ({ url: `/admin/artisans/${id}/verify`, method: 'PUT' }),
       invalidatesTags: ['Artisans'],
     }),
 
-    // Reject artisan (delete/ban)
     rejectArtisan: builder.mutation({
       query: (id) => ({ url: `/admin/users/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Artisans'],
@@ -100,6 +97,7 @@ export const {
   useDeleteUserMutation,
   useGetAllOrdersQuery,
   useGetAllAdminProductsQuery,
+  useGetAdminWorkshopsQuery,
   useGetBadgesQuery,
   useAssignBadgeMutation,
   useGetPendingArtisansQuery,

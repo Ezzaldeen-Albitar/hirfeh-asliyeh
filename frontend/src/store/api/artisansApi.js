@@ -2,12 +2,21 @@ import { baseApi } from './baseApi';
 
 const normalizeArtisan = (artisan) => {
   if (!artisan) return artisan;
+  const rating = artisan.avgRating ?? artisan.rating ?? 0;
+  const yearsOfExperience = artisan.yearsOfExperience ?? artisan.yearsExp ?? 0;
+  const productsCount = artisan.productsCount ?? artisan.totalProducts ?? 0;
+
   return {
     ...artisan,
     name: artisan.name ?? artisan.user?.name ?? '',
     avatar: artisan.avatar ?? artisan.user?.avatar ?? artisan.profileImage ?? '',
     craftSpecialty: artisan.craftSpecialty ?? artisan.craftName ?? artisan.specialties?.[0] ?? '',
     governorate: artisan.governorate ?? artisan.region ?? '',
+    avgRating: rating,
+    rating,
+    yearsExp: yearsOfExperience,
+    yearsOfExperience,
+    productsCount,
   };
 };
 

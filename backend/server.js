@@ -53,7 +53,7 @@ const globalLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.' },
+  message: { message: 'طلبات كثيرة جداً، يرجى المحاولة لاحقاً.' },
 });
 
 app.use('/api/', globalLimiter);
@@ -72,7 +72,6 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/artisans', artisanRoutes);
 app.use('/api/products', productRoutes);
@@ -92,7 +91,7 @@ app.use('/api/wishlist', wishlistRoutes); // تم تفعيل المسار
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ message: 'المسار غير موجود.' });
 });
 
 app.use(errorHandler);

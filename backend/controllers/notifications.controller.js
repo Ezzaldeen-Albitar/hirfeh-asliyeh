@@ -25,11 +25,11 @@ export async function markAsRead(req, res, next) {
       _id: req.params.id,
       recipient: req.user.userId,
     });
-    if (!notification) throw createError(404, 'Notification not found.');
+    if (!notification) throw createError(404, 'الإشعار غير موجود.');
     notification.isRead = true;
     notification.readAt = new Date();
     await notification.save();
-    return res.json({ message: 'Marked as read.' });
+    return res.json({ message: 'تم تحديد الإشعار كمقروء.' });
   } catch (err) {
     next(err);
   }
@@ -40,7 +40,7 @@ export async function markAllAsRead(req, res, next) {
       { recipient: req.user.userId, isRead: false },
       { $set: { isRead: true, readAt: new Date() } }
     );
-    return res.json({ message: 'All notifications marked as read.' });
+    return res.json({ message: 'تم تحديد كل الإشعارات كمقروءة.' });
   } catch (err) {
     next(err);
   }

@@ -4,13 +4,13 @@ export function errorHandler(err, req, res, next) {
     }
     if (err.type === 'StripeAuthenticationError' || /Invalid API Key/i.test(err.message || '')) {
         return res.status(500).json({
-            message: 'Stripe is not configured correctly. Check your API keys.',
+            message: 'إعدادات Stripe غير صحيحة. تحقق من مفاتيح API.',
         });
     }
     if (err.name === 'ValidationError') {
         const messages = Object.values(err.errors).map(e => e.message);
         return res.status(400).json({
-            message: 'Validation error',
+            message: 'خطأ في التحقق من البيانات',
             errors: messages,
         });
     }
@@ -26,10 +26,10 @@ export function errorHandler(err, req, res, next) {
         });
     }
     if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({ message: 'Invalid token' });
+        return res.status(401).json({ message: 'رمز الدخول غير صالح.' });
     }
     if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ message: 'Token expired. Please log in again.' });
+        return res.status(401).json({ message: 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.' });
     }
     const statusCode = err.statusCode || 500;
     res.status(statusCode).json({

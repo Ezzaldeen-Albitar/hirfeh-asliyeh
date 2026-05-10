@@ -29,28 +29,28 @@ export async function createRequest(req, res, next) {
         allowsCustomization: true,
       });
       if (!product) {
-        throw createError(404, 'Product not found or does not allow customization.');
+        throw createError(404, 'المنتج غير موجود أو لا يدعم التخصيص.');
       }
       artisanProfile = await ArtisanProfile.findById(product.artisan);
     } else {
       const targetArtisanId = artisanId || artisan;
       if (!targetArtisanId) {
-        throw createError(400, 'Artisan is required.');
+        throw createError(400, 'الحرفي مطلوب.');
       }
       artisanProfile = await ArtisanProfile.findById(targetArtisanId);
       if (!artisanProfile || !artisanProfile.isActive || artisanProfile.acceptsCustomOrders === false) {
-        throw createError(404, 'Artisan not found or does not accept custom orders.');
+        throw createError(404, 'الحرفي غير موجود أو لا يقبل طلبات التخصيص.');
       }
     }
 
     const notes = (customerNotes || description || '').trim();
     if (!notes) {
-      throw createError(400, 'Description is required.');
+      throw createError(400, 'الوصف مطلوب.');
     }
 
     const parsedBudget = budget !== undefined && budget !== '' ? Number(budget) : undefined;
     if (parsedBudget !== undefined && !Number.isFinite(parsedBudget)) {
-      throw createError(400, 'Budget must be a valid number.');
+      throw createError(400, 'الميزانية يجب أن تكون رقماً صحيحاً.');
     }
 
     const request = await CustomizationRequest.create({
@@ -88,7 +88,7 @@ export async function createRequest(req, res, next) {
       io
     );
 
-    return res.status(201).json({ message: 'Customization request submitted.', request });
+    return res.status(201).json({ message: 'تم إرسال طلب التخصيص.', request });
   } catch (err) {
     next(err);
   }
@@ -137,12 +137,12 @@ export async function getRequest(req, res, next) {
       .populate({ path: 'artisan', populate: { path: 'user', select: 'name avatar' } })
       .populate('messages.sender', 'name avatar role');
 
-    if (!request) throw createError(404, 'Request not found.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
 
     const isCustomer = request.customer._id.toString() === req.user.userId;
     const isArtisan = request.artisan?.user?._id?.toString() === req.user.userId;
     if (req.user.role !== 'admin' && !isCustomer && !isArtisan) {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
 
     return res.json({ request });
@@ -155,7 +155,7 @@ export async function sendQuote(req, res, next) {
   try {
     const { price, leadTimeDays, message } = req.body;
     const request = await CustomizationRequest.findById(req.params.id);
-    if (!request) throw createError(404, 'Request not found.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
     if (!request.canTransitionTo('quoted')) {
       throw createError(400, `Cannot quote from status: ${request.status}`);
     }
@@ -188,7 +188,7 @@ export async function sendQuote(req, res, next) {
       quote: request.artisanQuote,
     });
 
-    return res.json({ message: 'Quote sent.', request });
+    return res.json({ message: 'تم إرسال عرض السعر.', request });
   } catch (err) {
     next(err);
   }
@@ -200,13 +200,13 @@ export async function acceptQuote(req, res, next) {
       .populate('product')
       .populate('artisan');
 
-    if (!request) throw createError(404, 'Request not found.');
-    if (!request.customer.equals(req.user.userId)) throw createError(403, 'Forbidden.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
+    if (!request.customer.equals(req.user.userId)) throw createError(403, 'غير مصرح.');
     if (!request.product || !request.artisanQuote?.price) {
-      throw createError(400, 'This request cannot be converted into an order.');
+      throw createError(400, 'لا يمكن تحويل هذا الطلب إلى طلب شراء.');
     }
     if (!request.canTransitionTo('accepted')) {
-      throw createError(400, 'Quote cannot be accepted at this stage.');
+      throw createError(400, 'لا يمكن قبول عرض السعر في هذه المرحلة.');
     }
 
     request.status = 'accepted';
@@ -253,7 +253,7 @@ export async function acceptQuote(req, res, next) {
       io
     );
 
-    return res.json({ message: 'Quote accepted. Order created.', order, request });
+    return res.json({ message: 'تم قبول عرض السعر وإنشاء الطلب.', order, request });
   } catch (err) {
     next(err);
   }
@@ -270,15 +270,15 @@ export async function sendMessage(req, res, next) {
         populate: { path: 'user', select: 'name avatar' },
       });
 
-    if (!request) throw createError(404, 'Request not found.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
 
     const isCustomer = request.customer._id.toString() === req.user.userId;
     const isArtisan = request.artisan?.user?._id?.toString() === req.user.userId;
     if (!isCustomer && !isArtisan && req.user.role !== 'admin') {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
     if (!content?.trim()) {
-      throw createError(400, 'Message content is required.');
+      throw createError(400, 'محتوى الرسالة مطلوب.');
     }
 
     const message = {
@@ -333,7 +333,7 @@ export async function sendMessage(req, res, next) {
       );
     }
 
-    return res.status(201).json({ message: 'Message sent.', chatMessage: savedMsg });
+    return res.status(201).json({ message: 'تم إرسال الرسالة.', chatMessage: savedMsg });
   } catch (err) {
     next(err);
   }
@@ -344,17 +344,17 @@ export async function updateStatus(req, res, next) {
     const nextStatus = req.body.status === 'processing' ? 'in-progress' : req.body.status;
     const request = await CustomizationRequest.findById(req.params.id).populate('artisan', 'user');
 
-    if (!request) throw createError(404, 'Request not found.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
 
     const isCustomer = request.customer?.toString() === req.user.userId;
     const artisanUserId = request.artisan?.user?.toString();
     const isArtisan = artisanUserId === req.user.userId;
 
     if (!isCustomer && !isArtisan && req.user.role !== 'admin') {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
     if (nextStatus === 'in-progress' && !isArtisan && req.user.role !== 'admin') {
-      throw createError(403, 'Only the artisan can start the request.');
+      throw createError(403, 'بدء الطلب متاح للحرفي فقط.');
     }
     if (!request.canTransitionTo(nextStatus)) {
       throw createError(400, `Cannot change status from ${request.status} to ${nextStatus}.`);
@@ -363,7 +363,7 @@ export async function updateStatus(req, res, next) {
     request.status = nextStatus;
     await request.save();
 
-    return res.json({ message: 'Status updated.', request });
+    return res.json({ message: 'تم تحديث الحالة.', request });
   } catch (err) {
     next(err);
   }
@@ -372,15 +372,15 @@ export async function updateStatus(req, res, next) {
 export async function completeRequest(req, res, next) {
   try {
     const request = await CustomizationRequest.findById(req.params.id);
-    if (!request) throw createError(404, 'Request not found.');
+    if (!request) throw createError(404, 'الطلب غير موجود.');
     if (!request.canTransitionTo('completed')) {
-      throw createError(400, 'Cannot complete at this stage.');
+      throw createError(400, 'لا يمكن الإكمال في هذه المرحلة.');
     }
 
     request.status = 'completed';
     await request.save();
 
-    return res.json({ message: 'Request marked as completed.', request });
+    return res.json({ message: 'تم تحديد الطلب كمكتمل.', request });
   } catch (err) {
     next(err);
   }

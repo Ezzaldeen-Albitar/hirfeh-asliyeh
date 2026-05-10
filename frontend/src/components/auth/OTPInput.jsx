@@ -1,20 +1,13 @@
 'use client';
 
-/* cSpell:disable */
 import { useRef, useState, useEffect } from 'react';
 
-/**
- * OTPInput — مكون إدخال رمز التحقق
- * يستمع لـ value من الخارج لتصفير المربعات عند الحاجة
- */
 export default function OTPInput({ length = 6, onChange, value = '' }) {
   const [values, setValues] = useState(Array(length).fill(''));
   const refs = useRef([]);
 
-  // المزامنة مع القيمة القادمة من الخارج (مثلاً عند عمل Resend)
   useEffect(() => {
     if (value === '') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValues(Array(length).fill(''));
       refs.current[0]?.focus();
     }
@@ -27,14 +20,12 @@ export default function OTPInput({ length = 6, onChange, value = '' }) {
     setValues(next);
     onChange?.(next.join(''));
     
-    // الانتقال للمربع التالي إذا تم إدخال رقم
     if (val && i < length - 1) {
       refs.current[i + 1]?.focus();
     }
   };
 
   const handleKeyDown = (i, e) => {
-    // العودة للمربع السابق عند المسح
     if (e.key === 'Backspace' && !values[i] && i > 0) {
       refs.current[i - 1]?.focus();
     }
@@ -53,7 +44,6 @@ export default function OTPInput({ length = 6, onChange, value = '' }) {
     setValues(next);
     onChange?.(next.join(''));
 
-    // التركيز على المربع المناسب بعد اللصق
     const focusIdx = Math.min(pasted.length, length - 1);
     refs.current[focusIdx]?.focus();
   };

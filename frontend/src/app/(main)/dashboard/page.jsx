@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useGetOrdersQuery } from '@/store/api/ordersApi';
 import { useCancelOrderMutation } from '@/store/api/ordersApi';
+import { useGetMyWorkshopBookingsQuery } from '@/store/api/workshopsApi';
 import { toast, confirm } from '@/lib/sweetalert';
 
 const STATUS_MAP = {
@@ -14,19 +15,30 @@ const STATUS_MAP = {
   delivered:  { label:'تم التسليم',   color:'#22C55E', bg:'#F0FDF4' },
   cancelled:  { label:'ملغي',         color:'#EF4444', bg:'#FEF2F2' },
 };
+const WORKSHOP_BOOKING_STATUS_LABELS = {
+  confirmed: 'مؤكد',
+  attended: 'حضر',
+  'no-show': 'لم يحضر',
+  cancelled: 'ملغي',
+};
 
 const QUICK_LINKS = [
   { href:'/products',           icon:'bi-bag-heart',   label:'تسوّق الآن',      color:'var(--burgundy)' },
   { href:'/dashboard/wishlist', icon:'bi-heart',        label:'المفضلة',          color:'#EF4444' },
   { href:'/artisans',           icon:'bi-people',       label:'الحرفيون',          color:'var(--gold)' },
   { href:'/customizations',     icon:'bi-palette',      label:'طلبات التخصيص',   color:'#8B5CF6' },
+  { href:'/workshops',          icon:'bi-calendar-event', label:'الورش',          color:'#0F766E' },
 ];
 
 function CustomerDashboard() {
-  const { user } = useAuth();
+  const { user, isCustomer } = useAuth();
   const { data, isLoading } = useGetOrdersQuery({ limit:20 });
+  const { data: workshopBookingsData, isLoading: workshopBookingsLoading } = useGetMyWorkshopBookingsQuery(undefined, {
+    skip: !isCustomer,
+  });
   const [cancelOrder] = useCancelOrderMutation();
   const orders = data?.data || [];
+  const workshopBookings = workshopBookingsData?.data || [];
 
   const handleCancel = async (id) => {
     const { isConfirmed } = await confirm({ title:'إلغاء الطلب؟', text:'هل أنت متأكد من إلغاء هذا الطلب؟', confirmButtonText:'نعم، إلغاء', confirmButtonColor:'#ef4444' });
@@ -50,7 +62,6 @@ function CustomerDashboard() {
       </div>
 
       <div className="container" style={{padding:'40px 12px 60px'}}>
-        {/* Stats */}
         <div className="row g-3 mb-4">
           <div className="col-6 col-md-3">
             <div className="ha-card p-3 text-center">
@@ -72,16 +83,15 @@ function CustomerDashboard() {
           </div>
           <div className="col-6 col-md-3">
             <div className="ha-card p-3 text-center">
-              <div style={{fontSize:'1.8rem',fontFamily:'Playfair Display,serif',fontWeight:700,color:'var(--gold)'}}>{totalSpent}</div>
-              <div style={{fontSize:'0.8rem',color:'var(--warm-gray)'}}>د.أ مجموع المشتريات</div>
+              <div style={{fontSize:'1.8rem',fontFamily:'Playfair Display,serif',fontWeight:700,color:'var(--gold)'}}>{workshopBookings.length}</div>
+              <div style={{fontSize:'0.8rem',color:'var(--warm-gray)'}}>حجوزات الورش</div>
             </div>
           </div>
         </div>
 
-        {/* Quick links */}
         <div className="row g-3 mb-5">
           {QUICK_LINKS.map(a=>(
-            <div key={a.href} className="col-6 col-md-3">
+            <div key={a.href} className="col-6 col-md">
               <Link href={a.href} className="ha-card p-4 text-center text-decoration-none d-block">
                 <div style={{width:52,height:52,borderRadius:14,background:a.color+'18',margin:'0 auto 12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.5rem',color:a.color}}>
                   <i className={'bi '+a.icon}/>
@@ -92,7 +102,54 @@ function CustomerDashboard() {
           ))}
         </div>
 
-        {/* Orders */}
+        <div className="ha-card p-4 mb-4">
+          <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',marginBottom:20}}>
+            <i className="bi bi-calendar-check text-burgundy me-2"/>حجوزات الورش
+          </h5>
+          {workshopBookingsLoading ? (
+            <div className="text-center py-4"><span className="spinner-border" style={{color:'var(--burgundy)'}}/></div>
+          ) : workshopBookings.length===0 ? (
+            <div className="text-center py-5" style={{color:'var(--warm-gray)'}}>
+              <i className="bi bi-calendar-event fs-1 d-block mb-3" style={{color:'var(--stone)'}}/>
+              <p className="mb-3">لا توجد حجوزات ورش بعد</p>
+              <Link href="/workshops" className="btn btn-primary" style={{borderRadius:10,fontWeight:700}}>استعرض الورش</Link>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table align-middle" style={{fontSize:'0.88rem'}}>
+                <thead>
+                  <tr style={{background:'var(--parchment)'}}>
+                    {['الورشة','رمز التأكيد','المشاركون','الإجمالي','الحالة','التاريخ'].map(h=>(
+                      <th key={h} className="py-3 px-3" style={{fontWeight:600,color:'var(--warm-gray)',fontSize:'0.78rem'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {workshopBookings.map((booking)=>(
+                    <tr key={booking._id} style={{borderBottom:'1px solid var(--gold-pale)'}}>
+                      <td className="px-3 py-3">
+                        <Link href={`/workshops/${booking.session?._id}`} className="text-decoration-none" style={{fontWeight:600,color:'var(--charcoal)'}}>
+                          {booking.session?.title || 'ورشة'}
+                        </Link>
+                        <div style={{fontSize:'0.78rem',color:'var(--warm-gray)'}}>{booking.session?.dateLabel}</div>
+                      </td>
+                      <td className="px-3">
+                        <span className="px-2 py-1 rounded" style={{fontFamily:'monospace',background:'var(--parchment)',color:'var(--burgundy)',fontWeight:700}}>
+                          {booking.confirmationCode}
+                        </span>
+                      </td>
+                      <td className="px-3">{booking.participants}</td>
+                      <td className="px-3"><strong style={{color:'var(--burgundy)'}}>{booking.totalPrice} د.أ</strong></td>
+                      <td className="px-3">{WORKSHOP_BOOKING_STATUS_LABELS[booking.status] || booking.status}</td>
+                      <td className="px-3" style={{color:'var(--warm-gray)',fontSize:'0.8rem'}}>{booking.createdAt?.slice(0,10)||'—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div className="ha-card p-4">
           <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',marginBottom:20}}>
             <i className="bi bi-bag-check text-burgundy me-2"/>طلباتي

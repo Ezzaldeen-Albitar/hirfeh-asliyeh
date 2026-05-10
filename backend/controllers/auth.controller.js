@@ -12,6 +12,7 @@ import {
 import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailer.service.js';
 import { signTokenAndSetCookie, clearAuthCookie } from '../utils/jwt.js';
 import {
+  getDefaultArtisanAvatarImage,
   getDefaultArtisanCoverImage,
   normalizeCraftSpecialty,
   normalizeRegion,
@@ -36,7 +37,7 @@ async function buildAuthUserPayload(user) {
     name: user.name,
     email: user.email,
     role: user.role,
-    avatar: user.avatar,
+    avatar: user.avatar || (user.role === 'artisan' ? getDefaultArtisanAvatarImage() : user.avatar),
     isEmailVerified: user.isEmailVerified,
   };
 
@@ -51,6 +52,7 @@ async function buildAuthUserPayload(user) {
     payload.craftSpecialty = artisanProfile.craftName || artisanProfile.specialties?.[0] || pendingCraft || '';
     payload.governorate = artisanProfile.region || normalizeRegion(user.address?.governorate || '');
     payload.coverImage = artisanProfile.coverImage || getDefaultArtisanCoverImage(payload.craftSpecialty);
+    payload.avatar = user.avatar || artisanProfile.profileImage || getDefaultArtisanAvatarImage();
     payload.artisanProfileId = artisanProfile._id;
     return payload;
   }
@@ -61,6 +63,7 @@ async function buildAuthUserPayload(user) {
       user.pendingArtisanProfile?.governorate || user.address?.governorate || ''
     );
     payload.coverImage = getDefaultArtisanCoverImage(pendingCraft);
+    payload.avatar = user.avatar || getDefaultArtisanAvatarImage();
   }
 
   return payload;
@@ -94,10 +97,14 @@ async function ensureArtisanProfileForVerifiedUser(user) {
     bio,
     region,
     specialties: [craftSpecialty],
+    profileImage: user.avatar || getDefaultArtisanAvatarImage(),
     coverImage: getDefaultArtisanCoverImage(craftSpecialty),
     isVerified: false,
   });
 
+  if (!user.avatar) {
+    user.avatar = getDefaultArtisanAvatarImage();
+  }
   user.pendingArtisanProfile = undefined;
   await user.save();
 
@@ -115,8 +122,6 @@ async function deliverOtpEmail({ email, name, otp, purpose = 'verify' }) {
   } catch (mailErr) {
     console.error('Mail send failed:', mailErr.message);
     
-    // ✅ FIX: Don't throw error if mail fails. Return the OTP in response so user can verify if needed.
-    // This is much better than a 500 error that breaks registration.
     return {
       delivered: false,
       ...(canExposeDevOtp ? { devOtp: otp } : {}),
@@ -133,7 +138,7 @@ export async function register(req, res, next) {
     const safeRole = ['customer', 'artisan'].includes(role) ? role : 'customer';
     const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(409).json({ message: 'Email already registered. Please log in.' });
+      return res.status(409).json({ message: 'البريد الإلكتروني مسجل مسبقاً. يرجى تسجيل الدخول.' });
     }
     const otp = generateOTP();
     const user = await User.create({
@@ -141,6 +146,7 @@ export async function register(req, res, next) {
       email,
       password,
       role: safeRole,
+      ...(safeRole === 'artisan' ? { avatar: getDefaultArtisanAvatarImage() } : {}),
       ...(safeRole === 'artisan' && governorate
         ? { address: { governorate: normalizeRegion(governorate) } }
         : {}),
@@ -157,7 +163,6 @@ export async function register(req, res, next) {
     });
     const delivery = await deliverOtpEmail({ email, name, otp });
     
-    // ✅ Return 201 even if mail fails, with a helpful message
     return res.status(201).json({
       message: delivery.delivered
         ? 'Account created. Please check your email for the verification code.'
@@ -174,15 +179,15 @@ export async function login(req, res, next) {
     const { email, password } = req.body;
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' });
     }
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' });
     }
     if (!user.isEmailVerified) {
       return res.status(403).json({
-        message: 'Please verify your email first.',
+        message: 'يرجى توثيق بريدك الإلكتروني أولاً.',
         requiresVerification: true,
         email: user.email,
       });
@@ -199,7 +204,7 @@ export async function login(req, res, next) {
     });
     const authUser = await buildAuthUserPayload(user);
     return res.json({
-      message: 'Logged in successfully.',
+      message: 'تم تسجيل الدخول بنجاح.',
       user: authUser,
       token,
     });
@@ -209,20 +214,32 @@ export async function login(req, res, next) {
 }
 export async function logout(req, res) {
   clearAuthCookie(res);
-  return res.json({ message: 'Logged out successfully.' });
+  return res.json({ message: 'تم تسجيل الخروج بنجاح.' });
 }
 
 export async function getMe(req, res, next) {
   try {
     const user = await User.findById(req.user.userId).populate('wishlist', 'title images price');
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: 'المستخدم غير موجود.' });
     }
     let artisanProfile = null;
     if (user.role === 'artisan') {
       artisanProfile = await ArtisanProfile.findOne({ user: user._id })
         .populate('badges')
         .lean();
+      if (artisanProfile) {
+        const craftSpecialty = artisanProfile.craftName || artisanProfile.specialties?.[0] || '';
+        artisanProfile.profileImage = artisanProfile.profileImage || user.avatar || getDefaultArtisanAvatarImage();
+        artisanProfile.coverImage = artisanProfile.coverImage || getDefaultArtisanCoverImage(craftSpecialty);
+        if (!user.avatar) {
+          user.avatar = artisanProfile.profileImage;
+          await user.save();
+        }
+      } else if (!user.avatar) {
+        user.avatar = getDefaultArtisanAvatarImage();
+        await user.save();
+      }
     }
     return res.json({ user, artisanProfile });
   } catch (err) {
@@ -235,18 +252,18 @@ export async function verifyOTPHandler(req, res, next) {
     const { email, otp, purpose = 'verify' } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: 'المستخدم غير موجود.' });
     }
     const otpDoc = purpose === 'reset' ? user.passwordResetOtp : user.emailOtp;
     if (!otpDoc?.code) {
-      return res.status(400).json({ message: 'No verification code found. Please request a new one.' });
+      return res.status(400).json({ message: 'لا يوجد رمز تحقق. يرجى طلب رمز جديد.' });
     }
     if (isOTPExpired(otpDoc.expiresAt)) {
-      return res.status(400).json({ message: 'Code has expired. Please request a new one.' });
+      return res.status(400).json({ message: 'انتهت صلاحية الرمز. يرجى طلب رمز جديد.' });
     }
     if (otpDoc.attempts >= OTP_MAX_ATTEMPTS) {
       return res.status(429).json({
-        message: 'Too many wrong attempts. Please request a new code.',
+        message: 'محاولات خاطئة كثيرة. يرجى طلب رمز جديد.',
       });
     }
     const isValid = verifyOTP(otp, otpDoc.code);
@@ -255,7 +272,7 @@ export async function verifyOTPHandler(req, res, next) {
       await User.findByIdAndUpdate(user._id, { $inc: { [field]: 1 } });
       const remaining = OTP_MAX_ATTEMPTS - (otpDoc.attempts + 1);
       return res.status(400).json({
-        message: 'Incorrect code.',
+        message: 'رمز التحقق غير صحيح.',
         remainingAttempts: Math.max(0, remaining),
       });
     }
@@ -271,7 +288,7 @@ export async function verifyOTPHandler(req, res, next) {
       });
       const authUser = await buildAuthUserPayload(user);
       return res.json({
-        message: 'Email verified successfully.',
+        message: 'تم توثيق البريد الإلكتروني بنجاح.',
         user: authUser,
         token,
       });
@@ -280,7 +297,7 @@ export async function verifyOTPHandler(req, res, next) {
       user.passwordResetOtp.isUsed = true;
       user.passwordResetOtp.code = undefined; 
       await user.save();
-      return res.json({ message: 'Code verified. You can now reset your password.', email });
+      return res.json({ message: 'تم التحقق من الرمز. يمكنك الآن إعادة تعيين كلمة المرور.', email });
     }
   } catch (err) {
     next(err);
@@ -291,13 +308,13 @@ export async function resendOTP(req, res, next) {
     const { email, purpose = 'verify' } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ message: 'If this email exists, a new code has been sent.' });
+      return res.json({ message: 'إذا كان البريد موجوداً، تم إرسال رمز جديد.' });
     }
     const otpDoc = purpose === 'reset' ? user.passwordResetOtp : user.emailOtp;
     if (!canResendOTP(otpDoc?.lastSentAt)) {
       const seconds = resendCooldownSeconds(otpDoc?.lastSentAt);
       return res.status(429).json({
-        message: 'Please wait before requesting another code.',
+        message: 'يرجى الانتظار قبل طلب رمز جديد.',
         retryAfterSeconds: seconds,
       });
     }
@@ -325,14 +342,14 @@ export async function forgotPassword(req, res, next) {
     const user = await User.findOne({ email });
     if (user) {
       if (!canResendOTP(user.passwordResetOtp?.lastSentAt)) {
-        return res.json({ message: 'If this email exists, a reset code has been sent.' });
+        return res.json({ message: 'إذا كان البريد موجوداً، تم إرسال رمز إعادة التعيين.' });
       }
       const otp = generateOTP();
       user.passwordResetOtp = { ...buildOTPDoc(otp), isUsed: false };
       await user.save();
       await deliverOtpEmail({ email, name: user.name, otp, purpose: 'reset' });
     }
-    return res.json({ message: 'If this email exists, a reset code has been sent.' });
+    return res.json({ message: 'إذا كان البريد موجوداً، تم إرسال رمز إعادة التعيين.' });
   } catch (err) {
     next(err);
   }
@@ -342,17 +359,17 @@ export async function resetPassword(req, res, next) {
     const { email, newPassword } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: 'المستخدم غير موجود.' });
     }
     if (!user.passwordResetOtp?.isUsed) {
       return res.status(400).json({
-        message: 'Please verify your reset code first via /api/auth/verify-otp.',
+        message: 'يرجى التحقق من رمز إعادة التعيين أولاً.',
       });
     }
     user.password = newPassword;
     user.passwordResetOtp = undefined;
     await user.save();
-    return res.json({ message: 'Password reset successfully. You can now log in.' });
+    return res.json({ message: 'تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.' });
   } catch (err) {
     next(err);
   }
@@ -362,22 +379,20 @@ export async function googleAuth(req, res, next) {
     const { idToken } = req.body;
     const googleClientIds = parseGoogleClientIds();
     if (!idToken) {
-      return res.status(400).json({ message: 'idToken is required.' });
+      return res.status(400).json({ message: 'رمز Google مطلوب.' });
     }
     if (!googleClientIds.length) {
-      return res.status(500).json({ message: 'Google sign-in is not configured yet.' });
+      return res.status(500).json({ message: 'تسجيل الدخول عبر Google غير مهيأ بعد.' });
     }
 
-    // Verify the token with Google's public endpoint
     const googleRes = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
     );
     if (!googleRes.ok) {
-      return res.status(401).json({ message: 'Invalid Google token.' });
+      return res.status(401).json({ message: 'رمز Google غير صالح.' });
     }
     const payload = await googleRes.json();
 
-    // Confirm the token was issued for our app
     const validAudiences = googleClientIds;
     if (validAudiences.length && !validAudiences.includes(payload.aud)) {
       if (process.env.NODE_ENV !== 'production') {
@@ -387,12 +402,12 @@ export async function googleAuth(req, res, next) {
           allowedAudiences: validAudiences.map(mask),
         });
       }
-      return res.status(401).json({ message: 'Google token audience mismatch.' });
+      return res.status(401).json({ message: 'رمز Google لا يطابق هذا التطبيق.' });
     }
 
     const { email, name, sub: googleId, picture: avatar } = payload;
     if (!email || !googleId) {
-      return res.status(400).json({ message: 'Invalid Google credentials.' });
+      return res.status(400).json({ message: 'بيانات Google غير صالحة.' });
     }
 
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
@@ -411,7 +426,7 @@ export async function googleAuth(req, res, next) {
       await user.save();
     }
     if (user.isBanned) {
-      return res.status(403).json({ message: 'Account banned.' });
+      return res.status(403).json({ message: 'الحساب محظور.' });
     }
     const token = signTokenAndSetCookie(res, {
       userId: user._id,
@@ -419,7 +434,7 @@ export async function googleAuth(req, res, next) {
       email: user.email,
     });
     return res.json({
-      message: 'Logged in with Google.',
+      message: 'تم تسجيل الدخول عبر Google.',
       user: {
         _id: user._id,
         name: user.name,

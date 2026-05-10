@@ -11,13 +11,9 @@ import Cookies from 'js-cookie';
 
 function HydrateStore() {
   useEffect(() => {
-    // ✅ FIX 6: هاد الكود شغّال على الكلاينت فقط (داخل useEffect)
-    // بس بنضيف حماية إضافية لو localStorage أو Cookies مش موجودين (مثل بعض البيئات المقيّدة)
 
-    // Auth hydration
     try {
       const token = Cookies.get('token');
-      // ✅ تأكد إن localStorage موجود (SSR-safe)
       const raw   = typeof window !== 'undefined' ? localStorage.getItem('ha_user') : null;
       const user  = raw ? JSON.parse(raw) : null;
       if (token && user) {
@@ -26,7 +22,6 @@ function HydrateStore() {
         store.dispatch(logout());
       }
     } catch (e) {
-      // لو صار خطأ في الـ parse أو الـ cookie، ابدأ نظيف
       console.warn('[HydrateStore] auth hydration failed:', e);
       try {
         if (typeof window !== 'undefined') {
@@ -36,7 +31,6 @@ function HydrateStore() {
       }
     }
 
-    // Cart hydration
     try {
       const raw   = typeof window !== 'undefined' ? localStorage.getItem('ha_cart') : null;
       const items = raw ? JSON.parse(raw) : [];

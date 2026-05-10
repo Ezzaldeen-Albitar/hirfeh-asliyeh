@@ -15,7 +15,6 @@ export default function OriginStorySection({ product }) {
       <div className="gold-divider"/>
 
       <div className="row g-4">
-        {/* Map */}
         <div className="col-md-6">
           <h5 style={{fontFamily:'Amiri,serif',color:'var(--charcoal)',marginBottom:16}}>
             <i className="bi bi-geo-alt text-burgundy me-2"/>منطقة التصنيع
@@ -27,7 +26,6 @@ export default function OriginStorySection({ product }) {
           />
         </div>
 
-        {/* Process */}
         <div className="col-md-6">
           <h5 style={{fontFamily:'Amiri,serif',color:'var(--charcoal)',marginBottom:16}}>
             <i className="bi bi-diagram-3 text-burgundy me-2"/>عملية الصنع
@@ -55,7 +53,6 @@ export default function OriginStorySection({ product }) {
         </div>
       </div>
 
-      {/* Certificate */}
       <div className="certificate-box mt-4 text-center">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div className="text-start">

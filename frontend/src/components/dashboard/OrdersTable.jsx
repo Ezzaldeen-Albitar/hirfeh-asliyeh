@@ -90,7 +90,6 @@ function OrderModal({ order, onClose }) {
         }
       `}</style>
 
-      {/* ── Backdrop ── */}
       <div
         style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
@@ -99,7 +98,6 @@ function OrderModal({ order, onClose }) {
         }}
         onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
       >
-        {/* ── Dialog ── */}
         <div
           id="orders-modal-root"
           style={{
@@ -109,7 +107,6 @@ function OrderModal({ order, onClose }) {
             overflow: 'hidden',
           }}
         >
-          {/* Header */}
           <div style={{
             background: '#7A1C2E', color: '#fff', padding: '18px 20px',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
@@ -133,10 +130,8 @@ function OrderModal({ order, onClose }) {
             >✕</button>
           </div>
 
-          {/* Body — scrollable */}
           <div style={{ overflowY: 'auto', padding: '20px', flex: 1 }}>
 
-            {/* Customer */}
             <p style={{ fontSize: '0.68rem', letterSpacing: 1, textTransform: 'uppercase', color: '#888', fontWeight: 600, marginBottom: 8 }}>
               معلومات العميل
             </p>
@@ -153,7 +148,6 @@ function OrderModal({ order, onClose }) {
               </div>
             </div>
 
-            {/* Items */}
             {order.items?.length > 0 && (
               <>
                 <p style={{ fontSize: '0.68rem', letterSpacing: 1, textTransform: 'uppercase', color: '#888', fontWeight: 600, marginBottom: 8 }}>
@@ -177,7 +171,6 @@ function OrderModal({ order, onClose }) {
               </>
             )}
 
-            {/* Totals */}
             <div className="card border-0 shadow-sm">
               <div className="card-body py-2 px-3">
                 <div className="d-flex justify-content-between small text-muted mb-1">
@@ -194,7 +187,6 @@ function OrderModal({ order, onClose }) {
 
           </div>
 
-          {/* Footer */}
           <div style={{
             background: '#fff', padding: '12px 20px', borderTop: '1px solid #eee',
             display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0,
