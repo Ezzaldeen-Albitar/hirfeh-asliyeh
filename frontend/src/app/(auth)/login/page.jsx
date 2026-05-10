@@ -1,10 +1,10 @@
 'use client';
 
-import { GoogleLogin } from '@react-oauth/google';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import GoogleIdentityButton from '@/components/auth/GoogleIdentityButton';
 import { useDispatch } from 'react-redux';
 import { toast } from '@/lib/sweetalert';
 import { useGoogleLoginMutation, useLoginMutation } from '@/store/api/authApi';
@@ -232,7 +232,7 @@ export default function LoginPage() {
 
               {isGoogleConfigured ? (
                 <div className="d-flex justify-content-center mb-4" dir="ltr">
-                  <GoogleLogin
+                  <GoogleIdentityButton
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
                     theme="outline"
