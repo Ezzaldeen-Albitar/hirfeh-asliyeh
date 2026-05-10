@@ -25,7 +25,6 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
         <strong style={{fontFamily:'Amiri,serif',fontSize:'1.05rem'}}>محادثة التخصيص</strong>
       </div>
 
-      {/* Messages */}
       <div
         ref={messagesViewportRef}
         className="flex-grow-1 overflow-auto p-3"
@@ -57,7 +56,6 @@ export default function CustomizationChat({ messages = [], onSend, disabled }) {
         ))}
       </div>
 
-      {/* Input */}
       <div className="p-3 border-top d-flex gap-2" style={{borderColor:'var(--gold-pale)'}}>
         <input className="form-control" placeholder="اكتب رسالتك..." value={text}
           style={{borderRadius:20,borderColor:'var(--stone)',fontSize:'0.88rem'}}

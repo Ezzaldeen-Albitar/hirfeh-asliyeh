@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link'; // ✅ FIX ESLint: استورد Link
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLoginMutation } from '@/store/api/authApi';
 import { useDispatch } from 'react-redux';
@@ -34,7 +34,6 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // ✅ FIX 3: لا تحفظ التوكن يدوياً — setCredentials بيعملها
       dispatch(setCredentials({ user: res.user, token: res.token }));
       router.replace('/admin');
     } catch (err) {
@@ -196,7 +195,6 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          {/* ✅ FIX ESLint: <Link> بدل <a> للروابط الداخلية */}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
             <Link href="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textDecoration: 'none' }}>
               <i className="bi bi-arrow-right me-1"/>العودة للموقع

@@ -30,7 +30,6 @@ export function initSocket(io) {
             socket.leave(`customization:${requestId}`);
         });
         socket.on('join:order', async (orderId) => {
-            // Only allow authenticated users who own or are artisans of the order
             if (!socket.user?.userId) return;
             try {
                 const Order = (await import('../models/Order.js')).default;
@@ -44,7 +43,6 @@ export function initSocket(io) {
                     socket.join(`order:${orderId}`);
                 }
             } catch {
-                // silently ignore
             }
         });
         socket.on('send:message', (data) => {

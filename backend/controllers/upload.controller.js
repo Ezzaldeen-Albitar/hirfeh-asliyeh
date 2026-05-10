@@ -20,7 +20,7 @@ async function uploadBufferToCloudinary(buffer, options = {}) {
 }
 export async function uploadImage(req, res, next) {
   try {
-    if (!req.file) throw createError(400, 'No image file provided.');
+    if (!req.file) throw createError(400, 'لم يتم إرسال صورة.');
     const folder = req.body.folder || 'products'; 
     const result = await uploadBufferToCloudinary(req.file.buffer, {
       folder: `souqjo/${folder}`,
@@ -38,7 +38,7 @@ export async function uploadImage(req, res, next) {
 export async function uploadMultipleImages(req, res, next) {
   try {
     if (!req.files || req.files.length === 0) {
-      throw createError(400, 'No image files provided.');
+      throw createError(400, 'لم يتم إرسال صور.');
     }
     const folder = req.body.folder || 'products';
     const uploadPromises = req.files.map(file =>
@@ -58,9 +58,9 @@ export async function uploadMultipleImages(req, res, next) {
 export async function deleteImage(req, res, next) {
   try {
     const { publicId } = req.body;
-    if (!publicId) throw createError(400, 'Public ID is required.');
+    if (!publicId) throw createError(400, 'معرّف الصورة مطلوب.');
     await cloudinary.uploader.destroy(publicId);
-    return res.json({ message: 'Image deleted.' });
+    return res.json({ message: 'تم حذف الصورة.' });
   } catch (err) {
     next(err);
   }

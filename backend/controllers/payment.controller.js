@@ -21,15 +21,13 @@ export async function createPaymentIntent(req, res, next) {
   try {
     const { orderId } = req.body;
     const order = await Order.findOne({ _id: orderId, customer: req.user.userId });
-    if (!order) throw createError(404, 'Order not found.');
+    if (!order) throw createError(404, 'الطلب غير موجود.');
     if (order.paymentMethod !== 'stripe') {
-      throw createError(400, 'This order is not configured for card payment.');
+      throw createError(400, 'هذا الطلب غير مهيأ للدفع بالبطاقة.');
     }
     if (order.paymentStatus === 'paid') {
-      throw createError(400, 'Order is already paid.');
+      throw createError(400, 'تم دفع هذا الطلب مسبقاً.');
     }
-    // JOD is not supported by Stripe. Convert to USD using the configured rate.
-    // Set STRIPE_JOD_TO_USD_RATE in your .env (e.g. 1.41 for 1 JOD = 1.41 USD)
     const JOD_TO_USD = parseFloat(process.env.STRIPE_JOD_TO_USD_RATE || '1.41');
     const amountInCents = Math.round(order.totalAmount * JOD_TO_USD * 100);
     const paymentIntent = await getStripe().paymentIntents.create({
@@ -58,23 +56,23 @@ export async function confirmPaymentIntent(req, res, next) {
   try {
     const { orderId } = req.body;
     const order = await Order.findOne({ _id: orderId, customer: req.user.userId });
-    if (!order) throw createError(404, 'Order not found.');
+    if (!order) throw createError(404, 'الطلب غير موجود.');
     if (order.paymentMethod !== 'stripe') {
-      throw createError(400, 'This order is not configured for card payment.');
+      throw createError(400, 'هذا الطلب غير مهيأ للدفع بالبطاقة.');
     }
     if (!order.paymentIntentId) {
-      throw createError(400, 'No payment intent was created for this order yet.');
+      throw createError(400, 'لم يتم إنشاء عملية دفع لهذا الطلب بعد.');
     }
 
     const paymentIntent = await getStripe().paymentIntents.retrieve(order.paymentIntentId);
     if (paymentIntent.metadata?.orderId !== order._id.toString()) {
-      throw createError(400, 'Payment intent does not belong to this order.');
+      throw createError(400, 'عملية الدفع لا تتبع هذا الطلب.');
     }
 
     if (paymentIntent.status === 'succeeded') {
       const paidOrder = await finalizePaidOrder(order._id, paymentIntent.id, req.app.get('io'));
       return res.json({
-        message: 'Payment verified successfully.',
+        message: 'تم تأكيد الدفع بنجاح.',
         order: paidOrder,
         paymentStatus: paymentIntent.status,
       });
@@ -82,7 +80,7 @@ export async function confirmPaymentIntent(req, res, next) {
 
     if (paymentIntent.status === 'processing') {
       return res.status(202).json({
-        message: 'Payment is still processing.',
+        message: 'الدفع ما زال قيد المعالجة.',
         paymentStatus: paymentIntent.status,
       });
     }

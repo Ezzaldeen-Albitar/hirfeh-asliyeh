@@ -40,9 +40,6 @@ export default function RegisterPage() {
       const status  = err?.status;
       const message = err?.data?.message || '';
 
-      // ✅ FIX: السيرفر حفظ الحساب بنجاح بس فشل في إرسال الإيميل
-      // الأسباب الشائعة: ENETUNREACH، connect timeout، mail send failed
-      // في هاي الحالة نوجّه المستخدم لصفحة OTP مع رسالة واضحة
       const isMailError =
         status === 500 &&
         (message.toLowerCase().includes('mail') ||
@@ -51,7 +48,6 @@ export default function RegisterPage() {
          message.toLowerCase().includes('smtp') ||
          message.toLowerCase().includes('connect'));
 
-      // بعض السيرفرات بترجع 201 مع error في الإيميل
       const accountCreated = status === 201 || isMailError;
 
       if (accountCreated) {
@@ -61,7 +57,6 @@ export default function RegisterPage() {
         );
         router.push(`/verify-otp?email=${encodeURIComponent(form.email)}&purpose=verify`);
       } else if (status === 409 || message.toLowerCase().includes('exist')) {
-        // الحساب موجود مسبقاً
         toast.error('البريد الإلكتروني مسجّل مسبقاً — جرّب تسجيل الدخول');
       } else {
         toast.error(message || 'حدث خطأ ما، حاول مجدداً');
@@ -97,7 +92,6 @@ export default function RegisterPage() {
           <p style={{ color: 'var(--warm-gray)', fontSize: '0.88rem' }}>Create an account</p>
         </div>
 
-        {/* Role toggle */}
         <div className="d-flex justify-content-center mb-4">
           <div style={{ display: 'flex', border: '1.5px solid var(--stone)', borderRadius: 12, overflow: 'hidden' }}>
             {[{ k: 'customer', l: 'مشتري', icon: 'bi-person' }, { k: 'artisan', l: 'حرفي', icon: 'bi-tools' }].map(({ k, l, icon }) => (

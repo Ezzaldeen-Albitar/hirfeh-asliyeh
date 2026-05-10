@@ -41,7 +41,7 @@ const orderSchema = new Schema(
       required: true,
       validate: {
         validator: (v) => v.length >= 1,
-        message: 'Order must have at least one item',
+        message: 'يجب أن يحتوي الطلب على منتج واحد على الأقل',
       },
     },
     subtotal: { type: Number, required: true },
@@ -88,7 +88,6 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ 'items.artisan': 1, status: 1 });
 orderSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
-// توليد رقم الطلب قبل الـ validation حتى لا يسقط شرط required
 orderSchema.pre('validate', async function (next) {
   if (!this.orderNumber) {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -99,7 +98,6 @@ orderSchema.pre('validate', async function (next) {
   next();
 });
 
-// تحديث سجل الحالات عند تغيير الحالة
 orderSchema.pre('save', async function (next) {
   if (this.isModified('status')) {
     this.statusHistory ||= [];

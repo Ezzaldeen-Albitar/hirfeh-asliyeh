@@ -4,6 +4,7 @@ import * as workshopsController from '../controllers/workshops.controller.js';
 
 const router = Router();
 router.get('/', workshopsController.getWorkshops);
+router.get('/my-bookings', verifyToken, requireRole('customer'), workshopsController.getMyWorkshopBookings);
 router.get('/:id', workshopsController.getWorkshop);
 router.post('/', verifyToken, requireRole('artisan'), workshopsController.createWorkshop);
 router.put('/:id', verifyToken, requireRole('artisan', 'admin'), workshopsController.updateWorkshop);

@@ -39,7 +39,7 @@ const reviewSchema = new Schema(
       type: [String],
       validate: {
         validator: (v) => v.length <= 4,
-        message: 'Maximum 4 images allowed',
+        message: 'الحد الأقصى 4 صور',
       },
     },
     subRatings: {

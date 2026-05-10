@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 
-// Transporter singleton — created once and reused for all emails
 let _transporter = null;
 function getTransporter() {
   if (!_transporter) {
@@ -14,7 +13,6 @@ function getTransporter() {
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        // ✅ helps with some self-signed certificate issues in cloud environments
         rejectUnauthorized: false
       }
     });

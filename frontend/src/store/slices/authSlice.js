@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import Cookies from 'js-cookie';
 
-// الـ initialState دايماً فارغ (SSR-safe) — الـ hydration يصير في useEffect
 const initialState = { user: null, token: null, isAuthenticated: false, role: null };
 
 const authSlice = createSlice({
@@ -28,7 +27,6 @@ const authSlice = createSlice({
       state.user = { ...state.user, ...payload };
       try { localStorage.setItem('ha_user', JSON.stringify(state.user)); } catch {}
     },
-    // يُستدعى من useEffect على الكلاينت فقط
     hydrateAuth: (state, { payload }) => {
       state.user            = payload.user;
       state.token           = payload.token;

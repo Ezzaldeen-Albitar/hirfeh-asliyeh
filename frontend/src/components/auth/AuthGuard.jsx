@@ -1,6 +1,5 @@
 'use client';
 
-/* cSpell:disable */
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -26,9 +25,6 @@ function resolveRoleRedirect(role) {
   return '/';
 }
 
-/**
- * AuthGuard — يحمي الصفحات التي تتطلب تسجيل الدخول
- */
 export default function AuthGuard({ children, requiredRole, redirectTo = '/login' }) {
   const { isAuth, role } = useAuth();
   const router = useRouter();
@@ -39,7 +35,6 @@ export default function AuthGuard({ children, requiredRole, redirectTo = '/login
   const isAuthenticated = isAuth || Boolean(token);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

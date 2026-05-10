@@ -21,7 +21,6 @@ export default function ArtisanProfilePage() {
 
   if (isLoading) return (
     <div className="bg-cream">
-      {/* Cover skeleton */}
       <div className="placeholder-glow"><div className="placeholder w-100" style={{height:320,background:'var(--parchment)'}}/></div>
       <div className="container" style={{marginTop:-60,position:'relative',zIndex:2,paddingBottom:60}}>
         <div className="ha-card p-4 mb-4 placeholder-glow">
@@ -48,7 +47,6 @@ export default function ArtisanProfilePage() {
 
   return (
     <div className="bg-cream">
-      {/* Cover */}
       <div style={{position:'relative',height:320,overflow:'hidden'}}>
         <Image
           src={getArtisanCoverSrc(
@@ -71,7 +69,6 @@ export default function ArtisanProfilePage() {
       </div>
 
       <div className="container" style={{marginTop:-60,paddingBottom:60,position:'relative',zIndex:2}}>
-        {/* Profile card */}
         <div className="ha-card p-4 mb-4">
           <div className="d-flex flex-column flex-md-row gap-4 align-items-start align-items-md-center">
             <div style={{width:100,height:100,borderRadius:'50%',overflow:'hidden',position:'relative',flexShrink:0,marginTop:-40,border:'4px solid #fff'}}>
@@ -111,7 +108,6 @@ export default function ArtisanProfilePage() {
         </div>
 
         <div className="row g-4">
-          {/* Sidebar */}
           <div className="col-lg-4">
             <div className="ha-card p-4 mb-4">
               <h6 style={{fontFamily:'Amiri,serif',fontSize:'1.1rem',marginBottom:16}}>إحصائيات</h6>
@@ -141,7 +137,6 @@ export default function ArtisanProfilePage() {
             )}
           </div>
 
-          {/* Main content */}
           <div className="col-lg-8">
             {artisan.bio && (
               <div className="ha-card p-4 mb-4">

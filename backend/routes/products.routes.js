@@ -4,7 +4,6 @@ import * as productsController from '../controllers/products.controller.js';
 
 const router = Router();
 
-// ✅ Static routes MUST come before dynamic /:id routes
 router.get('/featured', productsController.getFeaturedProducts);
 router.get('/mine', verifyToken, requireRole('artisan', 'admin'), productsController.getMyProducts);
 router.get('/', productsController.getProducts);

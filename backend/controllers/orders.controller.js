@@ -26,10 +26,10 @@ export async function createOrder(req, res, next) {
         ? rawPaymentMethod
         : 'cash_on_delivery';
     if (!items || items.length === 0) {
-      throw createError(400, 'Order must have at least one item.');
+      throw createError(400, 'يجب أن يحتوي الطلب على منتج واحد على الأقل.');
     }
     if (!shippingAddress?.recipientName || !shippingAddress?.phone || !shippingAddress?.city || !shippingAddress?.governorate) {
-      throw createError(400, 'Shipping address is incomplete.');
+      throw createError(400, 'عنوان الشحن غير مكتمل.');
     }
     const orderItems = [];
     let subtotal = 0;
@@ -72,7 +72,7 @@ export async function createOrder(req, res, next) {
     if (paymentMethod === 'cash_on_delivery') {
       await confirmOrder(order._id, req.app.get('io'));
     }
-    return res.status(201).json({ message: 'Order placed successfully.', order });
+    return res.status(201).json({ message: 'تم إنشاء الطلب بنجاح.', order });
   } catch (err) {
     next(err);
   }
@@ -173,13 +173,13 @@ export async function getOrder(req, res, next) {
       .populate('customer', 'name email avatar phone')
       .populate('items.product', 'title images category')
       .populate('items.artisan', 'craftName profileImage user');
-    if (!order) throw createError(404, 'Order not found.');
+    if (!order) throw createError(404, 'الطلب غير موجود.');
     const isOwner = order.customer._id.toString() === req.user.userId;
     const isArtisan = order.items.some(i => {
       return i.artisan?.user?.toString() === req.user.userId;
     });
     if (req.user.role !== 'admin' && !isOwner && !isArtisan) {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
     return res.json({ order });
   } catch (err) {
@@ -198,7 +198,7 @@ export async function updateOrderStatus(req, res, next) {
   try {
     const { status, note, trackingNumber, estimatedDelivery } = req.body;
     const order = await Order.findById(req.params.id);
-    if (!order) throw createError(404, 'Order not found.');
+    if (!order) throw createError(404, 'الطلب غير موجود.');
     const validTransitions = VALID_STATUS_TRANSITIONS[order.status] || [];
     if (!validTransitions.includes(status)) {
       throw createError(400, `Cannot transition from "${order.status}" to "${status}".`);
@@ -224,7 +224,7 @@ export async function updateOrderStatus(req, res, next) {
       orderId: order._id,
       status,
     });
-    return res.json({ message: 'Order status updated.', order });
+    return res.json({ message: 'تم تحديث حالة الطلب.', order });
   } catch (err) {
     next(err);
   }
@@ -232,17 +232,17 @@ export async function updateOrderStatus(req, res, next) {
 export async function cancelOrder(req, res, next) {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order) throw createError(404, 'Order not found.');
+    if (!order) throw createError(404, 'الطلب غير موجود.');
     if (!order.customer.equals(req.user.userId)) {
-      throw createError(403, 'You can only cancel your own orders.');
+      throw createError(403, 'يمكنك إلغاء طلباتك فقط.');
     }
     if (order.status !== 'pending') {
-      throw createError(400, 'Only pending orders can be cancelled by the customer.');
+      throw createError(400, 'يمكن للعميل إلغاء الطلبات قيد الانتظار فقط.');
     }
     order.status = 'cancelled';
     order.statusHistory.push({ status: 'cancelled', note: 'Cancelled by customer', changedBy: req.user.userId });
     await order.save();
-    return res.json({ message: 'Order cancelled.', order });
+    return res.json({ message: 'تم إلغاء الطلب.', order });
   } catch (err) {
     next(err);
   }

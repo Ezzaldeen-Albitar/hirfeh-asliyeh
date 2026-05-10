@@ -5,7 +5,7 @@ import * as ordersController from '../controllers/orders.controller.js';
 const router = Router();
 const requireCustomerOrder = (req, res, next) => {
   if (req.user.role !== 'customer') {
-    return res.status(403).json({ message: 'Only customers can place orders.' });
+    return res.status(403).json({ message: 'إنشاء الطلبات متاح للعملاء فقط.' });
   }
   next();
 };

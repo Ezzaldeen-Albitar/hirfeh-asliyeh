@@ -2,8 +2,8 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
-import { selectIsAuth, selectRole } from '@/store/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout, selectIsAuth, selectRole } from '@/store/slices/authSlice';
 import {
   useApproveArtisanMutation,
   useDeleteUserMutation,
@@ -11,10 +11,12 @@ import {
   useGetAllAdminProductsQuery,
   useGetAllOrdersQuery,
   useGetAllUsersQuery,
+  useGetAdminWorkshopsQuery,
   useGetPendingArtisansQuery,
   useUpdateUserRoleMutation,
 } from '@/store/api/adminApi';
 import { useDeleteProductMutation } from '@/store/api/productsApi';
+import { useDeleteWorkshopMutation, useUpdateWorkshopMutation } from '@/store/api/workshopsApi';
 import { useUpdateOrderStatusMutation } from '@/store/api/ordersApi';
 import { confirm, toast } from '@/lib/sweetalert';
 import StatsCard from '@/components/dashboard/StatsCard';
@@ -22,11 +24,20 @@ import RevenueChart from '@/components/dashboard/RevenueChart';
 import OrdersTable from '@/components/dashboard/OrdersTable';
 import { DEFAULT_ARTISAN_AVATAR, DEFAULT_PRODUCT_IMAGE, getPrimaryImageSrc, getSafeImageSrc } from '@/lib/imageUtils';
 
-const TABS = ['نظرة عامة', 'المستخدمون', 'المنتجات', 'الطلبات', 'الحرفيون المعلّقون'];
+const TABS = ['نظرة عامة', 'المستخدمون', 'المنتجات', 'الطلبات', 'الورش', 'الحرفيون المعلّقون'];
 const ROLES = ['customer', 'artisan', 'admin'];
+const WORKSHOP_STATUSES = ['draft', 'upcoming', 'ongoing', 'completed', 'cancelled'];
+const WORKSHOP_STATUS_LABELS = {
+  draft: 'مسودة',
+  upcoming: 'قادمة',
+  ongoing: 'جارية',
+  completed: 'مكتملة',
+  cancelled: 'ملغاة',
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const role = useSelector(selectRole);
   const isAuth = useSelector(selectIsAuth);
   const [tab, setTab] = useState(0);
@@ -36,12 +47,15 @@ export default function AdminDashboard() {
   const { data: usersData } = useGetAllUsersQuery({ search });
   const { data: ordersData } = useGetAllOrdersQuery({});
   const { data: productsData } = useGetAllAdminProductsQuery({});
+  const { data: workshopsData } = useGetAdminWorkshopsQuery({ status: 'all', limit: 50 });
   const { data: pendingData } = useGetPendingArtisansQuery();
 
   const [approveArtisan] = useApproveArtisanMutation();
   const [deleteUser] = useDeleteUserMutation();
   const [updateRole] = useUpdateUserRoleMutation();
   const [deleteProduct] = useDeleteProductMutation();
+  const [deleteWorkshop] = useDeleteWorkshopMutation();
+  const [updateWorkshop] = useUpdateWorkshopMutation();
   const [updateStatus] = useUpdateOrderStatusMutation();
 
   useEffect(() => {
@@ -65,6 +79,7 @@ export default function AdminDashboard() {
   const users = usersData?.data || [];
   const orders = ordersData?.data || [];
   const products = productsData?.data || [];
+  const workshops = workshopsData?.data || [];
   const pending = pendingData?.data || [];
 
   const handleApprove = async (id, name) => {
@@ -117,10 +132,41 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleWorkshopStatus = async (id, status) => {
+    try {
+      await updateWorkshop({ id, body: { status } }).unwrap();
+      toast.success('تم تحديث حالة الورشة');
+    } catch {
+      toast.error('تعذر تحديث الورشة');
+    }
+  };
+
+  const handleCancelWorkshop = async (id, title) => {
+    const { isConfirmed } = await confirm({
+      title: `إلغاء "${title}"؟`,
+      text: 'سيتم تغيير حالة الورشة إلى ملغاة',
+      confirmButtonText: 'إلغاء الورشة',
+      confirmButtonColor: '#ef4444',
+    });
+    if (!isConfirmed) return;
+    try {
+      await deleteWorkshop(id).unwrap();
+      toast.success('تم إلغاء الورشة');
+    } catch {
+      toast.error('تعذر إلغاء الورشة');
+    }
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.replace('/admin/login');
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--cream)' }}>
       <div style={{ background: 'linear-gradient(135deg,var(--sidebar-bg),#3D2518)', padding: '24px 0' }}>
-        <div className="container d-flex align-items-center gap-3">
+        <div className="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
+          <div className="d-flex align-items-center gap-3">
           <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(184,150,60,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <i className="bi bi-shield-check" style={{ color: 'var(--gold-light)', fontSize: '1.2rem' }} />
           </div>
@@ -128,6 +174,23 @@ export default function AdminDashboard() {
             <h1 style={{ fontFamily: 'Amiri,serif', fontSize: '1.5rem', color: '#fff', margin: 0 }}>لوحة الإدارة</h1>
             <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,.55)' }}>حِرفة أصيلة - Admin Panel</div>
           </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn d-flex align-items-center gap-2"
+            style={{
+              background: 'rgba(255,255,255,.1)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,.22)',
+              borderRadius: 10,
+              padding: '9px 16px',
+              fontWeight: 700,
+            }}
+          >
+            <i className="bi bi-box-arrow-left" />
+            تسجيل الخروج
+          </button>
         </div>
       </div>
 
@@ -387,6 +450,83 @@ export default function AdminDashboard() {
         )}
 
         {tab === 4 && (
+          <div className="ha-card overflow-hidden">
+            <div className="p-4 border-bottom" style={{ borderColor: 'var(--gold-pale)' }}>
+              <h5 style={{ fontFamily: 'Amiri,serif', fontSize: '1.3rem', margin: 0 }}>
+                <i className="bi bi-calendar-event text-burgundy me-2" />
+                إدارة الورش
+              </h5>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table align-middle mb-0" style={{ fontSize: '0.87rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--parchment)' }}>
+                    {['الورشة', 'الحرفي', 'التاريخ', 'الحجوزات', 'المقاعد', 'الحالة', 'إجراءات'].map((header) => (
+                      <th key={header} className="py-3 px-3" style={{ fontWeight: 600, color: 'var(--warm-gray)', fontSize: '0.78rem' }}>
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {workshops.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-5" style={{ color: 'var(--warm-gray)' }}>
+                        لا توجد ورش
+                      </td>
+                    </tr>
+                  ) : (
+                    workshops.map((workshop) => {
+                      const date = workshop.schedule?.date ? new Date(workshop.schedule.date).toLocaleDateString('ar-JO') : '—';
+                      const artisanName = workshop.artisan?.user?.name || workshop.artisan?.craftName || '—';
+                      return (
+                        <tr key={workshop._id} style={{ borderBottom: '1px solid var(--gold-pale)' }}>
+                          <td className="px-3 py-3">
+                            <div style={{ fontWeight: 600 }}>{workshop.title}</div>
+                            <small style={{ color: 'var(--warm-gray)' }}>{workshop.locationType === 'online' ? 'عن بعد' : 'حضورية'}</small>
+                          </td>
+                          <td className="px-3">{artisanName}</td>
+                          <td className="px-3">{date}</td>
+                          <td className="px-3">{workshop.bookingsCount || 0}</td>
+                          <td className="px-3">
+                            <span style={{ fontWeight: 600 }}>
+                              {workshop.participantsCount ?? workshop.bookedCount ?? 0}/{workshop.capacity}
+                            </span>
+                          </td>
+                          <td className="px-3">
+                            <select
+                              className="form-select form-select-sm"
+                              value={workshop.status}
+                              onChange={(event) => handleWorkshopStatus(workshop._id, event.target.value)}
+                              style={{ width: 'auto', borderRadius: 6, fontSize: '0.8rem', borderColor: 'var(--stone)' }}
+                            >
+                              {WORKSHOP_STATUSES.map((status) => (
+                                <option key={status} value={status}>{WORKSHOP_STATUS_LABELS[status] || status}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3">
+                            <div className="d-flex gap-2">
+                              <a href={`/workshops/${workshop._id}`} target="_blank" className="btn btn-sm" style={{ borderRadius: 6, padding: '3px 10px', fontSize: '0.78rem', color: 'var(--warm-gray)', border: '1px solid var(--stone)' }}>
+                                <i className="bi bi-eye" />
+                              </a>
+                              <button onClick={() => handleCancelWorkshop(workshop._id, workshop.title)} className="btn btn-sm" style={{ borderRadius: 6, padding: '3px 10px', fontSize: '0.78rem', color: '#ef4444', border: '1px solid #ef4444' }}>
+                                <i className="bi bi-calendar-x" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 5 && (
           <div>
             <h5 style={{ fontFamily: 'Amiri,serif', fontSize: '1.4rem', marginBottom: 20 }}>
               <i className="bi bi-person-check text-burgundy me-2" />

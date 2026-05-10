@@ -1,20 +1,28 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import StarRating from '@/components/common/StarRating';
-import { getArtisanCoverSrc } from '@/lib/artisanCraftImages';
 
 export default function ArtisanCard({ artisan }) {
+  const rating = artisan.avgRating ?? artisan.rating ?? 0;
+  const productsCount = artisan.productsCount ?? artisan.totalProducts ?? 0;
+  const yearsOfExperience = artisan.yearsExp ?? artisan.yearsOfExperience ?? 0;
+  const coverImage = typeof artisan.coverImage === 'string' ? artisan.coverImage.trim() : '';
+  const avatar = typeof artisan.avatar === 'string' ? artisan.avatar.trim() : '';
+
   return (
     <div className="ha-card overflow-hidden h-100">
       <div className="position-relative" style={{ height: 200 }}>
-        <Image
-          src={getArtisanCoverSrc(artisan.coverImage, artisan.craftSpecialty)}
-          alt={artisan.name || 'حرفي'}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          style={{ objectFit: 'cover' }}
-        />
+        {coverImage ? (
+          <img
+            src={coverImage}
+            alt={artisan.name || 'حرفي'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div className="d-flex align-items-center justify-content-center h-100" style={{ background: 'var(--parchment)', color: 'var(--stone)' }}>
+            <i className="bi bi-image fs-1" />
+          </div>
+        )}
         <div
           style={{
             position: 'absolute',
@@ -43,13 +51,17 @@ export default function ArtisanCard({ artisan }) {
             zIndex: 1,
           }}
         >
-          <Image
-            src={artisan.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&q=70'}
-            alt=""
-            fill
-            sizes="60px"
-            style={{ objectFit: 'cover' }}
-          />
+          {avatar ? (
+            <img
+              src={avatar}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            <div className="d-flex align-items-center justify-content-center h-100" style={{ background: '#fff', color: 'var(--stone)' }}>
+              <i className="bi bi-person" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -60,7 +72,7 @@ export default function ArtisanCard({ artisan }) {
         <div style={{ fontSize: '0.8rem', color: 'var(--burgundy)', fontWeight: 600, marginBottom: 4 }}>
           {artisan.craftSpecialty}
         </div>
-        <StarRating value={artisan.avgRating || 0} />
+        <StarRating value={rating} />
         <div
           className="d-flex align-items-center gap-1 mt-2 mb-3"
           style={{ fontSize: '0.8rem', color: 'var(--warm-gray)' }}
@@ -71,11 +83,11 @@ export default function ArtisanCard({ artisan }) {
         <div className="d-flex gap-3 mb-3" style={{ fontSize: '0.8rem', color: 'var(--warm-gray)' }}>
           <span>
             <i className="bi bi-box-seam me-1 text-gold" />
-            {artisan.productsCount || 0} منتج
+            {productsCount} منتج
           </span>
           <span>
             <i className="bi bi-award me-1 text-gold" />
-            {artisan.yearsExp || 0} سنة خبرة
+            {yearsOfExperience} سنة خبرة
           </span>
         </div>
         <Link

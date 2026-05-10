@@ -26,14 +26,12 @@ export default function Navbar() {
     { href: '/workshops', label: 'الورش' },
   ];
 
-  // Focus input when search opens
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {
       setTimeout(() => searchInputRef.current?.focus(), 50);
     }
   }, [searchOpen]);
 
-  // Close search on Escape key
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape' && searchOpen) {
@@ -59,7 +57,6 @@ export default function Navbar() {
         <div className="container">
           <div className="d-flex align-items-center justify-content-between">
 
-            {/* Brand */}
             <Link href="/" className="d-flex align-items-center gap-2 text-decoration-none">
               <Image
                 src="/professional_minimalist_logo_for_hirfeh_asliyeh_1.png"
@@ -79,7 +76,6 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Nav links — desktop only */}
             <div className="d-none d-lg-flex align-items-center gap-1">
               {links.map(l => (
                 <Link key={l.href} href={l.href}
@@ -89,10 +85,8 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Actions */}
             <div className="d-flex align-items-center gap-2">
 
-              {/* Search button — clearly visible on light topbar */}
               <button
                 className="btn btn-sm border-0 rounded-circle p-2 navbar-icon-btn"
                 onClick={() => dispatch(toggleSearch())}
@@ -103,7 +97,6 @@ export default function Navbar() {
                 <i className="bi bi-search" />
               </button>
 
-              {/* Cart */}
               <Link href="/checkout" className="btn btn-sm position-relative navbar-cart-btn"
                 style={{ border: '1.5px solid var(--gold)', borderRadius: 8, padding: '5px 12px' }}>
                 <i className="bi bi-bag" style={{ color: 'var(--gold)' }} />
@@ -159,7 +152,6 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Hamburger — mobile ONLY via d-lg-none */}
               <button
                 className="btn btn-sm border-0 d-lg-none navbar-icon-btn"
                 data-bs-toggle="collapse"
@@ -174,7 +166,6 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile menu — hidden by default, shown only on small screens */}
           <div className="collapse mt-2" id="mobileNav">
             <div className="d-flex flex-column gap-1 pb-3 border-top pt-2"
               style={{ borderColor: 'rgba(122,28,46,.15)' }}>
@@ -189,7 +180,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Search Overlay — full-width dropdown under navbar */}
       {searchOpen && (
         <div
           className="search-overlay-backdrop"

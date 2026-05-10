@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useAddToWishlistMutation } from '@/store/api/wishlistApi';
@@ -30,22 +29,25 @@ export default function ProductCard({ product }) {
     }
   };
 
-  const imgSrc = product.images?.[0] || 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400&q=75';
+  const imgSrc = product.images?.[0] || '';
 
   return (
     <div className="ha-card h-100 overflow-hidden d-flex flex-column">
       <Link href={`/products/${product._id}`} className="text-decoration-none flex-grow-1 d-flex flex-column">
-        {/* Image */}
         <div className="position-relative overflow-hidden" style={{height:230,flexShrink:0}}>
-          <Image
-            src={imgSrc}
-            alt={product.name || 'منتج'}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            style={{objectFit:'cover',transition:'transform .4s'}}
-            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'}
-            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-          />
+          {imgSrc ? (
+            <img
+              src={imgSrc}
+              alt={product.name || 'منتج'}
+              style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transition:'transform .4s'}}
+              onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'}
+              onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+            />
+          ) : (
+            <div className="d-flex align-items-center justify-content-center h-100" style={{background:'var(--parchment)',color:'var(--stone)'}}>
+              <i className="bi bi-image fs-1"/>
+            </div>
+          )}
           <span className="badge-certified position-absolute" style={{bottom:10,right:10}}>✓ موثّق</span>
           <button onClick={handleWishlist}
             className="position-absolute btn btn-sm"
@@ -60,18 +62,15 @@ export default function ProductCard({ product }) {
           )}
         </div>
 
-        {/* Body */}
         <div className="p-3 flex-grow-1 d-flex flex-column">
           {product.artisan && (
             <div className="d-flex align-items-center gap-2 mb-2">
               {product.artisan.avatar && (
                 <div style={{width:24,height:24,borderRadius:'50%',overflow:'hidden',border:'1.5px solid var(--gold-pale)',flexShrink:0,position:'relative'}}>
-                  <Image
+                  <img
                     src={product.artisan.avatar}
                     alt=""
-                    fill
-                    sizes="24px"
-                    style={{objectFit:'cover'}}
+                    style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
                   />
                 </div>
               )}
@@ -98,7 +97,6 @@ export default function ProductCard({ product }) {
         </div>
       </Link>
 
-      {/* Add to cart */}
       <div className="px-3 pb-3">
         <button onClick={handleAddToCart}
           disabled={product.stock === 0}

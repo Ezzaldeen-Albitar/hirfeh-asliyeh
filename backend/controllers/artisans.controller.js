@@ -7,6 +7,7 @@ import { createError } from '../middleware/error.middleware.js';
 import { createAndEmitNotification } from '../services/notification.service.js';
 import { sendArtisanVerifiedEmail } from '../services/mailer.service.js';
 import {
+  getDefaultArtisanAvatarImage,
   getDefaultArtisanCoverImage,
   isAutoArtisanCoverImage,
   normalizeCraftSpecialty,
@@ -46,6 +47,27 @@ function resolveArtisanCoverImage(craftSpecialty, currentCoverImage) {
   return getDefaultArtisanCoverImage(craftSpecialty);
 }
 
+function withDefaultArtisanImages(artisan) {
+  if (!artisan) return artisan;
+  const plainArtisan = typeof artisan.toObject === 'function' ? artisan.toObject() : artisan;
+  const craftSpecialty = plainArtisan.craftName || plainArtisan.specialties?.[0] || '';
+  const profileImage = plainArtisan.profileImage || plainArtisan.user?.avatar || getDefaultArtisanAvatarImage();
+  const coverImage = plainArtisan.coverImage || getDefaultArtisanCoverImage(craftSpecialty);
+
+  return {
+    ...plainArtisan,
+    profileImage,
+    coverImage,
+    avatar: plainArtisan.avatar || profileImage,
+    user: plainArtisan.user
+      ? {
+          ...plainArtisan.user,
+          avatar: plainArtisan.user.avatar || profileImage,
+        }
+      : plainArtisan.user,
+  };
+}
+
 function buildEmptyDashboard() {
   return {
     data: {
@@ -73,32 +95,82 @@ function buildArtisanRevenueMatch(artisanId, extraMatch = {}) {
   };
 }
 
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function attachProductsCount(artisans) {
+  if (!artisans.length) return artisans;
+
+  const counts = await Product.aggregate([
+    { $match: { artisan: { $in: artisans.map((artisan) => artisan._id) }, isActive: true } },
+    { $group: { _id: '$artisan', count: { $sum: 1 } } },
+  ]);
+  const countMap = new Map(counts.map((item) => [item._id.toString(), item.count]));
+
+  return artisans.map((artisan) => ({
+    ...artisan,
+    productsCount: countMap.get(artisan._id.toString()) || 0,
+  }));
+}
+
 export async function getArtisans(req, res, next) {
   try {
-    const { region, verified, specialties, page = 1, limit = 12, sort = 'rating' } = req.query;
+    const {
+      region,
+      governorate,
+      verified,
+      specialties,
+      craftSpecialty,
+      search,
+      page = 1,
+      limit = 12,
+      sort = 'rating',
+    } = req.query;
     const filter = { isActive: true };
-    if (region) filter.region = normalizeRegion(region);
+    const selectedRegion = region || governorate;
+    const selectedSpecialties = specialties || craftSpecialty;
+
+    if (selectedRegion) filter.region = normalizeRegion(selectedRegion);
     if (verified === 'true') filter.isVerified = true;
-    if (specialties) filter.specialties = { $in: specialties.split(',') };
+    if (selectedSpecialties) {
+      filter.specialties = {
+        $in: selectedSpecialties.split(',').map((item) => item.trim()).filter(Boolean),
+      };
+    }
+    if (search?.trim()) {
+      const regex = new RegExp(escapeRegex(search.trim()), 'i');
+      const users = await User.find({ name: regex }).select('_id').lean();
+      filter.$or = [
+        { craftName: regex },
+        { bio: regex },
+        { region: regex },
+        { specialties: regex },
+        { user: { $in: users.map((user) => user._id) } },
+      ];
+    }
     const sortMap = {
       rating: { rating: -1 },
       newest: { createdAt: -1 },
       sales: { totalSales: -1 },
     };
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const [artisans, total] = await Promise.all([
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 12, 1), 48);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const skip = (safePage - 1) * safeLimit;
+    const [rawArtisans, total] = await Promise.all([
       ArtisanProfile.find(filter)
         .sort(sortMap[sort] || sortMap.rating)
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(safeLimit)
         .populate('user', 'name avatar')
         .populate('badges', 'nameAr nameEn icon')
         .lean(),
       ArtisanProfile.countDocuments(filter),
     ]);
+    const artisans = (await attachProductsCount(rawArtisans)).map(withDefaultArtisanImages);
     return res.json({
       artisans,
-      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / parseInt(limit)) },
+      pagination: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) },
     });
   } catch (err) {
     next(err);
@@ -110,8 +182,8 @@ export async function getArtisan(req, res, next) {
     const artisan = await ArtisanProfile.findById(req.params.id)
       .populate('user', 'name avatar email')
       .populate('badges');
-    if (!artisan || !artisan.isActive) throw createError(404, 'Artisan not found.');
-    return res.json({ artisan });
+    if (!artisan || !artisan.isActive) throw createError(404, 'الحرفي غير موجود.');
+    return res.json({ artisan: withDefaultArtisanImages(artisan) });
   } catch (err) {
     next(err);
   }
@@ -121,7 +193,7 @@ export async function applyAsArtisan(req, res, next) {
   try {
     const existing = await ArtisanProfile.findOne({ user: req.user.userId });
     if (existing) {
-      return res.status(409).json({ message: 'You already have an artisan profile.' });
+      return res.status(409).json({ message: 'لديك ملف حرفي مسبقاً.' });
     }
     const craftName = normalizeCraftSpecialty(
       req.body.craftName || req.body.craftSpecialty || req.body.specialties?.[0]
@@ -131,13 +203,15 @@ export async function applyAsArtisan(req, res, next) {
       ...req.body,
       ...(craftName ? { craftName, specialties: [craftName] } : {}),
       region: normalizeRegion(req.body.region),
+      profileImage: req.body.profileImage || getDefaultArtisanAvatarImage(),
       coverImage: resolveArtisanCoverImage(craftName, req.body.coverImage),
       isVerified: false,
     });
     await User.findByIdAndUpdate(req.user.userId, { role: 'artisan' });
+    await User.updateOne({ _id: req.user.userId, $or: [{ avatar: { $exists: false } }, { avatar: '' }, { avatar: null }] }, { avatar: getDefaultArtisanAvatarImage() });
     return res.status(201).json({
-      message: 'Artisan profile created. Pending verification by admin.',
-      artisan,
+      message: 'تم إنشاء ملف الحرفي، بانتظار توثيق الإدارة.',
+      artisan: withDefaultArtisanImages(artisan),
     });
   } catch (err) {
     next(err);
@@ -149,7 +223,7 @@ export async function updateCurrentArtisanProfile(req, res, next) {
     const { name, phone, craftSpecialty, governorate, bio } = req.body;
 
     const user = await User.findById(req.user.userId);
-    if (!user) throw createError(404, 'User not found.');
+    if (!user) throw createError(404, 'المستخدم غير موجود.');
 
     let artisan = await ArtisanProfile.findOne({ user: req.user.userId });
 
@@ -165,7 +239,7 @@ export async function updateCurrentArtisanProfile(req, res, next) {
 
     if (!artisan) {
       if (!craftName || !region || !safeBio) {
-        throw createError(400, 'Bio and governorate are required to create the artisan profile.');
+        throw createError(400, 'النبذة والمحافظة مطلوبة لإنشاء ملف الحرفي.');
       }
       artisan = await ArtisanProfile.create({
         user: req.user.userId,
@@ -173,6 +247,7 @@ export async function updateCurrentArtisanProfile(req, res, next) {
         bio: safeBio,
         region,
         specialties,
+        profileImage: user.avatar || getDefaultArtisanAvatarImage(),
         coverImage: resolveArtisanCoverImage(craftName, ''),
         isVerified: false,
       });
@@ -181,12 +256,14 @@ export async function updateCurrentArtisanProfile(req, res, next) {
       if (craftName) artisan.craftName = craftName;
       if (region) artisan.region = region;
       artisan.specialties = specialties;
+      if (!artisan.profileImage) artisan.profileImage = user.avatar || getDefaultArtisanAvatarImage();
       artisan.coverImage = resolveArtisanCoverImage(craftName, artisan.coverImage);
       await artisan.save();
     }
 
     if (typeof name === 'string') user.name = name.trim();
     if (typeof phone === 'string') user.phone = phone.trim();
+    if (!user.avatar) user.avatar = artisan?.profileImage || getDefaultArtisanAvatarImage();
     if (region) {
       user.address = user.address || {};
       user.address.governorate = region;
@@ -197,9 +274,9 @@ export async function updateCurrentArtisanProfile(req, res, next) {
     await user.save();
 
     return res.json({
-      message: 'Profile updated.',
+      message: 'تم تحديث الملف.',
       user,
-      artisanProfile: artisan,
+      artisanProfile: withDefaultArtisanImages(artisan),
     });
   } catch (err) {
     next(err);
@@ -286,16 +363,16 @@ export async function getCurrentArtisanDashboard(req, res, next) {
 export async function updateArtisan(req, res, next) {
   try {
     const artisan = await ArtisanProfile.findById(req.params.id);
-    if (!artisan) throw createError(404, 'Artisan profile not found.');
+    if (!artisan) throw createError(404, 'ملف الحرفي غير موجود.');
     if (req.user.role !== 'admin' && !artisan.user.equals(req.user.userId)) {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
     delete req.body.isVerified;
     const updated = await ArtisanProfile.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
-    return res.json({ message: 'Profile updated.', artisan: updated });
+    return res.json({ message: 'تم تحديث الملف.', artisan: updated });
   } catch (err) {
     next(err);
   }
@@ -303,9 +380,9 @@ export async function updateArtisan(req, res, next) {
 export async function getArtisanStats(req, res, next) {
   try {
     const artisan = await ArtisanProfile.findById(req.params.id);
-    if (!artisan) throw createError(404, 'Artisan not found.');
+    if (!artisan) throw createError(404, 'الحرفي غير موجود.');
     if (req.user.role !== 'admin' && !artisan.user.equals(req.user.userId)) {
-      throw createError(403, 'Forbidden.');
+      throw createError(403, 'غير مصرح.');
     }
     const [productCount, productViews, recentOrders, revenueResult] = await Promise.all([
       Product.countDocuments({ artisan: artisan._id, isActive: true }),
@@ -344,7 +421,7 @@ export async function verifyArtisan(req, res, next) {
   try {
     const { approved, rejectionReason } = req.body;
     const artisan = await ArtisanProfile.findById(req.params.id).populate('user');
-    if (!artisan) throw createError(404, 'Artisan not found.');
+    if (!artisan) throw createError(404, 'الحرفي غير موجود.');
     const io = req.app.get('io');
     if (approved) {
       artisan.isVerified = true;
@@ -370,7 +447,7 @@ export async function verifyArtisan(req, res, next) {
       } catch (e) {
         console.error('Email send failed:', e.message);
       }
-      return res.json({ message: 'Artisan verified successfully.', artisan });
+      return res.json({ message: 'تم توثيق الحرفي بنجاح.', artisan });
     } else {
       artisan.rejectionReason = rejectionReason;
       await artisan.save();
@@ -384,7 +461,7 @@ export async function verifyArtisan(req, res, next) {
         },
         io
       );
-      return res.json({ message: 'Artisan verification rejected.' });
+      return res.json({ message: 'تم رفض توثيق الحرفي.' });
     }
   } catch (err) {
     next(err);
@@ -394,11 +471,11 @@ export async function assignBadge(req, res, next) {
   try {
     const { badgeId } = req.body;
     const artisan = await ArtisanProfile.findById(req.params.id);
-    if (!artisan) throw createError(404, 'Artisan not found.');
+    if (!artisan) throw createError(404, 'الحرفي غير موجود.');
     const badge = await Badge.findById(badgeId);
-    if (!badge) throw createError(404, 'Badge not found.');
+    if (!badge) throw createError(404, 'الشارة غير موجودة.');
     if (artisan.badges.includes(badgeId)) {
-      return res.status(409).json({ message: 'Artisan already has this badge.' });
+      return res.status(409).json({ message: 'هذه الشارة مضافة للحرفي مسبقاً.' });
     }
     artisan.badges.push(badgeId);
     await artisan.save();
@@ -413,7 +490,7 @@ export async function assignBadge(req, res, next) {
       },
       io
     );
-    return res.json({ message: 'Badge assigned.', artisan });
+    return res.json({ message: 'تمت إضافة الشارة.', artisan });
   } catch (err) {
     next(err);
   }
@@ -422,12 +499,13 @@ export async function assignBadge(req, res, next) {
 export async function getFeaturedArtisans(req, res, next) {
   try {
     const { limit = 6 } = req.query;
-    const artisans = await ArtisanProfile.find({ isActive: true, isVerified: true })
+    const rawArtisans = await ArtisanProfile.find({ isActive: true, isVerified: true })
       .sort({ rating: -1, totalSales: -1 })
       .limit(parseInt(limit))
       .populate('user', 'name avatar')
       .populate('badges', 'nameAr nameEn icon')
       .lean();
+    const artisans = (await attachProductsCount(rawArtisans)).map(withDefaultArtisanImages);
     return res.json({ artisans });
   } catch (err) {
     next(err);

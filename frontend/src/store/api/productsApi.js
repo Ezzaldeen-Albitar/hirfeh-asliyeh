@@ -78,7 +78,6 @@ export const productsApi = baseApi.injectEndpoints({
     getAllProducts: builder.query({
       query: (params) => ({ url: '/admin/products', params }),
       transformResponse: (response) => ({
-        // إضافة الـ normalization لضمان عمل واجهة الأدمن بشكل صحيح
         data: (response.products || []).map(normalizeProduct),
         pagination: response.pagination,
       }),
@@ -88,12 +87,12 @@ export const productsApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useGetProductsQuery, 
-  useGetProductQuery, 
+  useGetProductsQuery,
+  useGetProductQuery,
   useGetFeaturedProductsQuery,
-  useCreateProductMutation, 
+  useCreateProductMutation,
   useUpdateProductMutation,
-  useDeleteProductMutation, 
-  useGetAllProductsQuery, 
-  useGetMyProductsQuery, // تم دمج هذا الخطاف لضمان عمل "منتجاتي" للحرفي
+  useDeleteProductMutation,
+  useGetAllProductsQuery,
+  useGetMyProductsQuery,
 } = productsApi;
