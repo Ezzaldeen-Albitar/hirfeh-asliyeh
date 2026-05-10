@@ -22,11 +22,11 @@ export const reviewsApi = baseApi.injectEndpoints({
     }),
     createReview: builder.mutation({
       query: (body) => ({ url: '/reviews', method: 'POST', body }),
-      invalidatesTags: ['Reviews'],
+      invalidatesTags: ['Reviews', 'Products'],
     }),
     deleteReview: builder.mutation({
       query: (id) => ({ url: `/reviews/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['Reviews'],
+      invalidatesTags: ['Reviews', 'Products'],
     }),
   }),
 });

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { setImageFallback } from '@/lib/imageUtils';
 
 export default function ProductImages({ images = [] }) {
   const [active, setActive] = useState(0);
@@ -13,6 +14,7 @@ export default function ProductImages({ images = [] }) {
             src={imgs[active]}
             alt="main"
             style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+            onError={setImageFallback}
           />
         ) : (
           <div className="d-flex align-items-center justify-content-center h-100" style={{background:'var(--parchment)',color:'var(--stone)'}}>
@@ -32,6 +34,7 @@ export default function ProductImages({ images = [] }) {
               src={src}
               alt={`thumb-${i}`}
               style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+              onError={setImageFallback}
             />
           </div>
         ))}

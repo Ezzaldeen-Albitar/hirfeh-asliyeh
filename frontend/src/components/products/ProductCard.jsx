@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAddToWishlistMutation } from '@/store/api/wishlistApi';
 import { toast } from '@/lib/sweetalert';
 import StarRating from '@/components/common/StarRating';
+import { getPrimaryImageSrc, setImageFallback } from '@/lib/imageUtils';
 
 export default function ProductCard({ product }) {
   const { addItem }  = useCart();
@@ -29,7 +30,9 @@ export default function ProductCard({ product }) {
     }
   };
 
-  const imgSrc = product.images?.[0] || '';
+  const imgSrc = getPrimaryImageSrc(product.images);
+  const rating = product.avgRating ?? product.rating ?? 0;
+  const reviewsCount = product.reviewsCount ?? product.reviewCount ?? 0;
 
   return (
     <div className="ha-card h-100 overflow-hidden d-flex flex-column">
@@ -40,6 +43,7 @@ export default function ProductCard({ product }) {
               src={imgSrc}
               alt={product.name || 'منتج'}
               style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transition:'transform .4s'}}
+              onError={setImageFallback}
               onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'}
               onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
             />
@@ -71,6 +75,7 @@ export default function ProductCard({ product }) {
                     src={product.artisan.avatar}
                     alt=""
                     style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+                    onError={setImageFallback}
                   />
                 </div>
               )}
@@ -81,7 +86,12 @@ export default function ProductCard({ product }) {
             {product.name}
           </h6>
           <div className="mt-auto">
-            <StarRating value={product.avgRating||0}/>
+            <div className="d-flex align-items-center gap-2">
+              <StarRating value={rating}/>
+              {reviewsCount > 0 ? (
+                <small style={{color:'var(--warm-gray)',fontSize:'0.72rem'}}>({reviewsCount})</small>
+              ) : null}
+            </div>
             <div className="d-flex align-items-center justify-content-between mt-2">
               <span style={{fontFamily:'Playfair Display,serif',fontSize:'1.1rem',color:'var(--burgundy)',fontWeight:700}}>
                 <small style={{fontWeight:400,color:'var(--warm-gray)',fontSize:'0.7rem',marginLeft:2}}>د.أ</small>

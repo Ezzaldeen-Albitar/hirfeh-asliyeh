@@ -6,6 +6,7 @@ import { useGetWorkshopsQuery, useBookWorkshopMutation } from '@/store/api/works
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/lib/sweetalert';
 import Pagination from '@/components/common/Pagination';
+import { DEFAULT_WORKSHOP_IMAGE, setImageFallback } from '@/lib/imageUtils';
 
 const LOCATION_TYPES = [
   { value: '', label: 'كل الورش' },
@@ -161,6 +162,7 @@ export default function WorkshopsPage() {
                               src={cover}
                               alt={workshop.title}
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(event) => setImageFallback(event, DEFAULT_WORKSHOP_IMAGE)}
                             />
                           ) : (
                             <div className="d-flex align-items-center justify-content-center h-100" style={{ background: 'var(--parchment)', color: 'var(--stone)' }}>

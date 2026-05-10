@@ -101,6 +101,8 @@ export default function ProductDetailPage() {
     </div>
   );
 
+  const reviewCount = product.reviewsCount ?? product.reviewCount ?? reviews.length;
+
   return (
     <div className="bg-cream">
       <div style={{ background: 'var(--parchment)', borderBottom: '1px solid var(--gold-pale)', padding: '14px 0' }}>
@@ -171,7 +173,7 @@ export default function ProductDetailPage() {
 
             <div className="d-flex align-items-center gap-2 mb-3">
               <StarRating value={product.avgRating || 0} />
-              <small style={{ color: 'var(--warm-gray)' }}>({reviews.length} تقييم)</small>
+              <small style={{ color: 'var(--warm-gray)' }}>({reviewCount} تقييم)</small>
             </div>
 
             <p style={{ color: 'var(--warm-gray)', lineHeight: 1.9, marginBottom: 24, fontSize: '0.95rem' }}>

@@ -1,28 +1,50 @@
 import { baseApi } from './baseApi';
+import { DEFAULT_ARTISAN_AVATAR, getPrimaryImageSrc, getSafeImageSrc } from '@/lib/imageUtils';
 import { normalizeProductCategory, normalizeRegion } from '@/lib/productFilters';
 
 const normalizeArtisan = (artisan) => {
   if (!artisan) return artisan;
+  const rating = Number(artisan.avgRating ?? artisan.rating ?? 0);
+  const reviewCount = Number(artisan.reviewsCount ?? artisan.reviewCount ?? 0);
+
   return {
     ...artisan,
     name: artisan.name ?? artisan.user?.name ?? artisan.craftName ?? '',
-    avatar: artisan.avatar ?? artisan.user?.avatar ?? artisan.profileImage ?? '',
+    avatar: getSafeImageSrc(
+      artisan.avatar ?? artisan.user?.avatar ?? artisan.profileImage ?? '',
+      DEFAULT_ARTISAN_AVATAR
+    ),
     craftSpecialty: artisan.craftSpecialty ?? artisan.craftName ?? artisan.specialties?.[0] ?? '',
     governorate: artisan.governorate ?? artisan.region ?? '',
+    avgRating: rating,
+    rating,
+    reviewsCount: reviewCount,
+    reviewCount,
   };
 };
 
 const normalizeProduct = (product) => {
   if (!product) return product;
   const normalizedCategory = normalizeProductCategory(product.category ?? product.craftType ?? '');
+  const rating = Number(product.avgRating ?? product.rating ?? 0);
+  const reviewCount = Number(product.reviewsCount ?? product.reviewCount ?? 0);
+  const images = Array.isArray(product.images)
+    ? product.images.map((image) => getSafeImageSrc(image)).filter(Boolean)
+    : [];
+
   return {
     ...product,
     name: product.name ?? product.title ?? '',
     title: product.title ?? product.name ?? '',
+    images: images.length ? images : [getPrimaryImageSrc(product.images)],
     craftType: normalizedCategory,
     category: normalizedCategory,
     governorate: normalizeRegion(product.governorate ?? product.artisan?.region ?? ''),
     artisan: normalizeArtisan(product.artisan),
+    avgRating: rating,
+    rating,
+    reviewsCount: reviewCount,
+    reviewCount,
   };
 };
 

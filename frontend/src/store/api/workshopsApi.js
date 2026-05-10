@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import { DEFAULT_WORKSHOP_IMAGE, getSafeImageSrc } from '@/lib/imageUtils';
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -33,7 +34,10 @@ const normalizeWorkshop = (session) => {
     bookedCount,
     booked: bookedCount,
     spotsLeft: Math.max(capacity - bookedCount, 0),
-    coverImage: session.coverImage || session.images?.[0] || session.image || session.img || '',
+    coverImage: getSafeImageSrc(
+      session.coverImage || session.images?.[0] || session.image || session.img,
+      DEFAULT_WORKSHOP_IMAGE
+    ),
     date,
     dateLabel: formatDate(date),
     timeLabel: [startTime, endTime].filter(Boolean).join(' - '),

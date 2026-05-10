@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useGetWorkshopQuery, useBookWorkshopMutation } from '@/store/api/workshopsApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/lib/sweetalert';
+import { DEFAULT_WORKSHOP_IMAGE, setImageFallback } from '@/lib/imageUtils';
 
 const levelLabel = {
   all: 'مناسبة للجميع',
@@ -102,6 +103,7 @@ export default function WorkshopDetailPage() {
             src={cover}
             alt={workshop.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={(event) => setImageFallback(event, DEFAULT_WORKSHOP_IMAGE)}
           />
         ) : (
           <div className="d-flex align-items-center justify-content-center h-100" style={{ background: 'var(--parchment)', color: 'var(--stone)' }}>
