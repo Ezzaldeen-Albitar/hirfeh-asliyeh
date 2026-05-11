@@ -34,12 +34,25 @@ await connectDB();
 const app = express();
 app.set('trust proxy', 1);
 
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+};
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-  },
+  cors: corsOptions,
 });
 
 initSocket(io);
@@ -58,10 +71,7 @@ const globalLimiter = rateLimit({
 
 app.use('/api/', globalLimiter);
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(cookieParser());
