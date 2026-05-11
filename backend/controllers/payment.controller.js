@@ -131,7 +131,7 @@ export async function stripeWebhook(req, res) {
               type: 'order_update',
               title: ' فشل الدفع',
               body: `فشل دفع الطلب #${order.orderNumber}. يرجى المحاولة مرة أخرى.`,
-              link: `/dashboard/orders/${orderId}`,
+              link: `/dashboard?order=${orderId}`,
             });
           }
           console.log(`Payment failed for order ${orderId}`);

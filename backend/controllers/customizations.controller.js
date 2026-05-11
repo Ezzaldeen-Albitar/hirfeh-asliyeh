@@ -177,7 +177,7 @@ export async function sendQuote(req, res, next) {
         type: 'customization',
         title: 'Quote sent',
         body: `The artisan sent a quote: ${price} JOD`,
-        link: `/dashboard/customizations/${request._id}`,
+        link: `/customizations?request=${request._id}`,
         data: { requestId: request._id },
       },
       io
@@ -247,7 +247,7 @@ export async function acceptQuote(req, res, next) {
         type: 'customization',
         title: 'Quote accepted',
         body: 'The customer accepted the quote. An order was created.',
-        link: `/dashboard/artisan/orders`,
+        link: `/dashboard/artisan`,
         data: { orderId: order._id },
       },
       io

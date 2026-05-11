@@ -41,6 +41,20 @@ const nextConfig = {
   // 4. تعطيل الميزات التجريبية التي تسبب مشاكل مع Middleware في نسخة 16
 
   // 5. تجنب أخطاء الفحص أثناء الرفع لتسريع العملية وتفادي الفشل المفاجئ
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+        ],
+      },
+    ];
+  },
+
   typescript: {
     ignoreBuildErrors: true, 
   },

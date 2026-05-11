@@ -33,6 +33,14 @@ export function proxy(request) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  if ((pathname === '/dashboard' || pathname === '/dashboard/') && role === 'artisan') {
+    return NextResponse.redirect(new URL('/dashboard/artisan', request.url));
+  }
+
+  if ((pathname === '/dashboard' || pathname === '/dashboard/') && role === 'admin') {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
+
   if (pathname.startsWith('/dashboard/artisan') && role && role !== 'artisan') {
     return NextResponse.redirect(new URL(role === 'admin' ? '/admin' : '/', request.url));
   }

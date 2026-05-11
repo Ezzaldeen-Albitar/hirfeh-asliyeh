@@ -28,13 +28,33 @@ function formatTime(value) {
   }
 }
 
+function normalizeLegacyDashboardLink(link) {
+  if (!link) return link;
+
+  if (link.startsWith('/dashboard/orders/')) {
+    const orderId = link.split('/').pop();
+    return orderId ? `/dashboard?order=${orderId}` : '/dashboard';
+  }
+
+  if (link.startsWith('/dashboard/customizations/')) {
+    const requestId = link.split('/').pop();
+    return requestId ? `/customizations?request=${requestId}` : '/customizations';
+  }
+
+  if (link === '/dashboard/artisan/orders') {
+    return '/dashboard/artisan';
+  }
+
+  return link;
+}
+
 function getNotificationTarget(notification) {
   const requestId = notification?.data?.requestId;
   if (requestId && ['message', 'customization'].includes(notification?.type)) {
     return `/customizations?request=${requestId}`;
   }
 
-  return notification?.link;
+  return normalizeLegacyDashboardLink(notification?.link);
 }
 
 export default function NotificationBell() {

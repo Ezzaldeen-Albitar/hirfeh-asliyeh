@@ -104,7 +104,7 @@ export async function confirmOrder(orderId, io) {
       type: 'order_update',
       title: 'تم تأكيد طلبك',
       body: `طلبك #${order.orderNumber} قيد التجهيز الآن.`,
-      link: `/dashboard/orders/${order._id}`,
+      link: `/dashboard?order=${order._id}`,
       data: { orderId: order._id },
     },
     io
@@ -119,7 +119,7 @@ export async function confirmOrder(orderId, io) {
           type: 'order_update',
           title: 'طلب جديد!',
           body: `لديك طلب جديد #${order.orderNumber}.`,
-          link: `/dashboard/artisan/orders`,
+          link: `/dashboard/artisan`,
           data: { orderId: order._id },
         },
         io
@@ -215,7 +215,7 @@ export async function updateOrderStatus(req, res, next) {
         type: 'order_update',
         title: `تحديث الطلب #${order.orderNumber}`,
         body: `تم تحديث حالة طلبك إلى: ${status}`,
-        link: `/dashboard/orders/${order._id}`,
+        link: `/dashboard?order=${order._id}`,
         data: { orderId: order._id, status },
       },
       io

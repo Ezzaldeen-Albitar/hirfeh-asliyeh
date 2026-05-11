@@ -19,6 +19,7 @@ export default function Navbar() {
   const searchOpen = useSelector((s) => s.ui.searchOpen);
   const [query, setQuery] = useState('');
   const searchInputRef = useRef(null);
+  const accountHref = isAdmin ? '/admin' : isArtisan ? '/dashboard/artisan' : '/dashboard';
 
   const links = [
     { href: '/products', label: 'المنتجات' },
@@ -129,7 +130,7 @@ export default function Navbar() {
                           <i className="bi bi-shield-check me-2 text-burgundy" />لوحة الإدارة
                         </Link></li>
                       )}
-                      <li><Link className="dropdown-item" href="/dashboard">
+                      <li><Link className="dropdown-item" href={accountHref}>
                         <i className="bi bi-person me-2 text-burgundy" />حسابي
                       </Link></li>
                       <li><Link className="dropdown-item" href="/dashboard/wishlist">

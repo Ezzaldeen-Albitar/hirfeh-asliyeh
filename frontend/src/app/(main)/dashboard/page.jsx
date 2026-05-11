@@ -2,6 +2,8 @@
 import AuthGuard from '@/components/auth/AuthGuard';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useGetOrdersQuery } from '@/store/api/ordersApi';
 import { useCancelOrderMutation } from '@/store/api/ordersApi';
@@ -32,6 +34,9 @@ const QUICK_LINKS = [
 
 function CustomerDashboard() {
   const { user, isCustomer } = useAuth();
+  const searchParams = useSearchParams();
+  const highlightedOrderId = searchParams.get('order');
+  const ordersSectionRef = useRef(null);
   const { data, isLoading } = useGetOrdersQuery({ limit:20 });
   const { data: workshopBookingsData, isLoading: workshopBookingsLoading } = useGetMyWorkshopBookingsQuery(undefined, {
     skip: !isCustomer,
@@ -39,6 +44,11 @@ function CustomerDashboard() {
   const [cancelOrder] = useCancelOrderMutation();
   const orders = data?.data || [];
   const workshopBookings = workshopBookingsData?.data || [];
+
+  useEffect(() => {
+    if (!highlightedOrderId || !orders.length) return;
+    ordersSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [highlightedOrderId, orders.length]);
 
   const handleCancel = async (id) => {
     const { isConfirmed } = await confirm({ title:'إلغاء الطلب؟', text:'هل أنت متأكد من إلغاء هذا الطلب؟', confirmButtonText:'نعم، إلغاء', confirmButtonColor:'#ef4444' });
@@ -150,7 +160,7 @@ function CustomerDashboard() {
           )}
         </div>
 
-        <div className="ha-card p-4">
+        <div ref={ordersSectionRef} className="ha-card p-4">
           <h5 style={{fontFamily:'Amiri,serif',fontSize:'1.3rem',marginBottom:20}}>
             <i className="bi bi-bag-check text-burgundy me-2"/>طلباتي
           </h5>
@@ -222,7 +232,7 @@ function CustomerDashboard() {
 
 export default function Page() {
   return (
-    <AuthGuard>
+    <AuthGuard requiredRole="customer">
       <CustomerDashboard />
     </AuthGuard>
   );
