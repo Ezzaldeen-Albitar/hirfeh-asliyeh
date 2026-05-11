@@ -4,7 +4,7 @@ import * as ordersController from '../controllers/orders.controller.js';
 
 const router = Router();
 const requireCustomerOrder = (req, res, next) => {
-  if (req.user.role !== 'customer') {
+  if (!['customer', 'artisan'].includes(req.user.role)) {
     return res.status(403).json({ message: 'إنشاء الطلبات متاح للعملاء فقط.' });
   }
   next();
