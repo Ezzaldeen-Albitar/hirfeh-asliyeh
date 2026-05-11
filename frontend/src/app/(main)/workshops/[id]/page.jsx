@@ -17,12 +17,13 @@ const levelLabel = {
 export default function WorkshopDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { isAuth, isCustomer } = useAuth();
+  const { isArtisan, isAuth, isCustomer } = useAuth();
   const { data, isLoading, isError, refetch } = useGetWorkshopQuery(id, { skip: !id });
   const [bookWorkshop, { isLoading: booking }] = useBookWorkshopMutation();
   const [participants, setParticipants] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
   const workshop = data?.data;
+  const canBookWorkshop = isCustomer || isArtisan;
 
   const maxParticipants = Math.max(workshop?.spotsLeft || 0, 0);
   const totalPrice = useMemo(() => {
@@ -38,7 +39,7 @@ export default function WorkshopDetailPage() {
       router.push('/login');
       return;
     }
-    if (!isCustomer) {
+    if (!canBookWorkshop) {
       toast.warning('الحجز متاح لحسابات العملاء فقط');
       return;
     }

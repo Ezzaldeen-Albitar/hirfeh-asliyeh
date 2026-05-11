@@ -5,53 +5,37 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { useAuth } from '@/hooks/useAuth';
 
-function decodeTokenRole(token) {
-  if (!token) return null;
-
-  try {
-    const [, payload = ''] = token.split('.');
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const parsed = JSON.parse(window.atob(padded));
-    return typeof parsed?.role === 'string' ? parsed.role : null;
-  } catch {
-    return null;
-  }
-}
-
 function resolveRoleRedirect(role) {
   if (role === 'admin') return '/admin';
   if (role === 'artisan') return '/dashboard/artisan';
-  return '/';
+  if (role === 'customer') return '/dashboard';
+  return '/login';
 }
 
 export default function AuthGuard({ children, requiredRole, redirectTo = '/login' }) {
-  const { isAuth, role } = useAuth();
+  const { isAuth, isReady, role } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const token = mounted ? Cookies.get('token') : null;
-  const tokenRole = mounted ? decodeTokenRole(token) : null;
-  const effectiveRole = tokenRole || role;
-  const isAuthenticated = isAuth || Boolean(token);
+  const hasToken = mounted ? Boolean(Cookies.get('token')) : false;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !isReady) return;
 
-    if (!isAuthenticated) {
+    if (!hasToken || !isAuth) {
       router.replace(redirectTo);
       return;
     }
 
-    if (requiredRole && effectiveRole !== requiredRole) {
-      router.replace(resolveRoleRedirect(effectiveRole));
+    if (requiredRole && role !== requiredRole) {
+      router.replace(resolveRoleRedirect(role));
     }
-  }, [mounted, isAuthenticated, effectiveRole, requiredRole, redirectTo, router]);
+  }, [hasToken, isAuth, isReady, mounted, redirectTo, requiredRole, role, router]);
 
-  if (!mounted) {
+  if (!mounted || !isReady) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center">
         <div
@@ -65,7 +49,7 @@ export default function AuthGuard({ children, requiredRole, redirectTo = '/login
     );
   }
 
-  if (!isAuthenticated || (requiredRole && effectiveRole !== requiredRole)) {
+  if (!hasToken || !isAuth || (requiredRole && role !== requiredRole)) {
     return null;
   }
 

@@ -56,7 +56,7 @@ const mapChatMessages = (messages, currentUserId) =>
   }));
 
 function ArtisanDashboard() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isArtisan, isReady } = useAuth();
   const [tab, setTab]       = useState(0);
   const [activeCustom, setActiveCustom] = useState(null);
   const [showForm, setShowForm]     = useState(false);
@@ -79,13 +79,21 @@ function ArtisanDashboard() {
     });
   }, [user?._id, user?.name, user?.phone, user?.bio, user?.craftSpecialty, user?.governorate]);
 
-  const { data: dash }  = useGetArtisanDashboardQuery();
-  const { data: ordersData, isLoading: ordersLoading } = useGetArtisanOrdersQuery({});
-  const { data: productsData, isLoading: productsLoading } = useGetMyProductsQuery({ limit:50 });
-  const { data: customsData }  = useGetCustomizationsQuery();
+  const canLoadArtisanData = isReady && isArtisan;
+
+  const { data: dash }  = useGetArtisanDashboardQuery(undefined, { skip: !canLoadArtisanData });
+  const { data: ordersData, isLoading: ordersLoading } = useGetArtisanOrdersQuery(
+    {},
+    { skip: !canLoadArtisanData }
+  );
+  const { data: productsData, isLoading: productsLoading } = useGetMyProductsQuery(
+    { limit:50 },
+    { skip: !canLoadArtisanData }
+  );
+  const { data: customsData }  = useGetCustomizationsQuery(undefined, { skip: !canLoadArtisanData });
   const { data: workshopsData, isLoading: workshopsLoading } = useGetWorkshopsQuery(
     { artisan: user?.artisanProfileId, limit: 50, status: 'upcoming' },
-    { skip: !user?.artisanProfileId }
+    { skip: !canLoadArtisanData || !user?.artisanProfileId }
   );
 
   const [updateStatus]     = useUpdateOrderStatusMutation();

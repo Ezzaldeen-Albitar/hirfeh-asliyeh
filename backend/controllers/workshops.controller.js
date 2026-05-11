@@ -8,11 +8,14 @@ export async function getWorkshops(req, res, next) {
   try {
     const { page = 1, limit = 12, artisan, locationType, skillLevel, status = 'upcoming' } = req.query;
     const filter = {};
+
     if (status && status !== 'all') filter.status = status;
     if (artisan) filter.artisan = artisan;
     if (locationType) filter.locationType = locationType;
     if (skillLevel) filter.skillLevel = skillLevel;
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const [sessions, total] = await Promise.all([
       WorkshopSession.find(filter)
         .sort({ 'schedule.date': 1 })
@@ -22,6 +25,7 @@ export async function getWorkshops(req, res, next) {
         .lean(),
       WorkshopSession.countDocuments(filter),
     ]);
+
     return res.json({
       sessions,
       pagination: { total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) },
@@ -55,6 +59,7 @@ export async function getAdminWorkshops(req, res, next) {
   try {
     const { page = 1, limit = 20, status = 'all', locationType, skillLevel } = req.query;
     const filter = {};
+
     if (status && status !== 'all') filter.status = status;
     if (locationType) filter.locationType = locationType;
     if (skillLevel) filter.skillLevel = skillLevel;
@@ -98,26 +103,30 @@ export async function getAdminWorkshops(req, res, next) {
 
 export async function getWorkshop(req, res, next) {
   try {
-    const session = await WorkshopSession.findById(req.params.id)
-      .populate({
-        path: 'artisan',
-        select: 'craftName profileImage region isVerified bio rating',
-        populate: { path: 'user', select: 'name avatar' },
-      });
+    const session = await WorkshopSession.findById(req.params.id).populate({
+      path: 'artisan',
+      select: 'craftName profileImage region isVerified bio rating',
+      populate: { path: 'user', select: 'name avatar' },
+    });
+
     if (!session) throw createError(404, 'الورشة غير موجودة.');
+
     return res.json({ session });
   } catch (err) {
     next(err);
   }
 }
+
 export async function createWorkshop(req, res, next) {
   try {
     const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
     if (!artisan) throw createError(404, 'ملف الحرفي غير موجود.');
+
     const session = await WorkshopSession.create({
       artisan: artisan._id,
       ...req.body,
     });
+
     return res.status(201).json({ message: 'تم إنشاء الورشة.', session });
   } catch (err) {
     next(err);
@@ -128,12 +137,14 @@ export async function updateWorkshop(req, res, next) {
   try {
     const session = await WorkshopSession.findById(req.params.id);
     if (!session) throw createError(404, 'الورشة غير موجودة.');
+
     if (req.user.role !== 'admin') {
       const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
       if (!artisan || !session.artisan.equals(artisan._id)) {
         throw createError(403, 'غير مصرح.');
       }
     }
+
     const updated = await WorkshopSession.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -144,50 +155,72 @@ export async function updateWorkshop(req, res, next) {
     next(err);
   }
 }
+
 export async function deleteWorkshop(req, res, next) {
   try {
     const session = await WorkshopSession.findById(req.params.id);
     if (!session) throw createError(404, 'الورشة غير موجودة.');
+
     if (req.user.role !== 'admin') {
       const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
       if (!artisan || !session.artisan.equals(artisan._id)) {
         throw createError(403, 'غير مصرح.');
       }
     }
+
     await WorkshopSession.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
     return res.json({ message: 'تم إلغاء الورشة.' });
   } catch (err) {
     next(err);
   }
 }
+
 export async function bookWorkshop(req, res, next) {
   try {
-    const { participants = 1, specialRequests, paymentMethod = 'cash_on_delivery' } = req.body;
+    const { participants = 1, specialRequests } = req.body;
     const session = await WorkshopSession.findById(req.params.id);
     if (!session) throw createError(404, 'الورشة غير موجودة.');
-    if (session.status !== 'upcoming') throw createError(400, 'هذه الورشة غير متاحة للحجز.');
+
+    if (req.user.role === 'artisan') {
+      const artisan = await ArtisanProfile.findOne({ user: req.user.userId }).select('_id').lean();
+      if (artisan?._id && session.artisan.equals(artisan._id)) {
+        throw createError(400, 'لا يمكنك حجز ورشتك الخاصة.');
+      }
+    }
+
+    if (session.status !== 'upcoming') {
+      throw createError(400, 'هذه الورشة غير متاحة للحجز.');
+    }
+
+    const safeParticipants = Math.max(parseInt(participants) || 1, 1);
     const availableSpots = session.capacity - session.bookedCount;
-    if (participants > availableSpots) {
+
+    if (safeParticipants > availableSpots) {
       throw createError(400, `المقاعد المتبقية فقط: ${availableSpots}.`);
     }
+
     const existing = await WorkshopBooking.findOne({
       session: session._id,
       customer: req.user.userId,
       status: { $ne: 'cancelled' },
     });
+
     if (existing) {
       throw createError(409, 'لديك حجز مسبق لهذه الورشة.');
     }
-    const totalPrice = session.price * participants;
+
+    const totalPrice = session.price * safeParticipants;
     const booking = await WorkshopBooking.create({
       session: session._id,
       customer: req.user.userId,
-      participants,
+      participants: safeParticipants,
       totalPrice,
       specialRequests,
       paymentStatus: 'pending',
     });
-    await WorkshopSession.findByIdAndUpdate(session._id, { $inc: { bookedCount: participants } });
+
+    await WorkshopSession.findByIdAndUpdate(session._id, { $inc: { bookedCount: safeParticipants } });
+
     const artisan = await ArtisanProfile.findById(session.artisan);
     if (artisan) {
       const io = req.app.get('io');
@@ -196,13 +229,14 @@ export async function bookWorkshop(req, res, next) {
         {
           type: 'workshop',
           title: 'حجز ورشة جديد',
-          body: `تم حجز ${participants} مقعد في ورشة "${session.title}"`,
-          link: `/dashboard/artisan`,
+          body: `تم حجز ${safeParticipants} مقعد في ورشة "${session.title}"`,
+          link: '/dashboard/artisan',
           data: { bookingId: booking._id },
         },
         io
       );
     }
+
     return res.status(201).json({
       message: 'تم حجز الورشة بنجاح.',
       booking,
@@ -212,19 +246,23 @@ export async function bookWorkshop(req, res, next) {
     next(err);
   }
 }
+
 export async function getSessionBookings(req, res, next) {
   try {
     const session = await WorkshopSession.findById(req.params.id);
     if (!session) throw createError(404, 'الورشة غير موجودة.');
+
     if (req.user.role !== 'admin') {
       const artisan = await ArtisanProfile.findOne({ user: req.user.userId });
       if (!artisan || !session.artisan.equals(artisan._id)) {
         throw createError(403, 'غير مصرح.');
       }
     }
+
     const bookings = await WorkshopBooking.find({ session: session._id })
       .populate('customer', 'name email avatar phone')
       .lean();
+
     return res.json({ bookings });
   } catch (err) {
     next(err);

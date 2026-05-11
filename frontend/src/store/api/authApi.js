@@ -24,6 +24,9 @@ export const authApi = baseApi.injectEndpoints({
     googleLogin: builder.mutation({
       query: (body) => ({ url: '/auth/google', method: 'POST', body }),
     }),
+    logout: builder.mutation({
+      query: () => ({ url: '/auth/logout', method: 'POST' }),
+    }),
     getMe: builder.query({
       query: () => '/auth/me',
       providesTags: ['Users'],
@@ -34,5 +37,5 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useLoginMutation, useRegisterMutation, useVerifyOtpMutation,
   useResendOtpMutation, useForgotPasswordMutation, useResetPasswordMutation,
-  useGoogleLoginMutation, useGetMeQuery,
+  useGoogleLoginMutation, useLogoutMutation, useGetMeQuery,
 } = authApi;

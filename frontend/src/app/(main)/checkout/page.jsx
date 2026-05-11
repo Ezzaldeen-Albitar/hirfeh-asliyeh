@@ -18,6 +18,7 @@ const GOVS = ['عمان', 'الزرقاء', 'إربد', 'مأدبا', 'جرش', 
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 const cardElementOptions = {
+  disableLink: true,
   style: {
     base: {
       fontSize: '16px',
@@ -299,6 +300,14 @@ function CheckoutPage() {
     if (step !== 3) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [step]);
+
+  useEffect(() => {
+    setShipping((current) => ({
+      ...current,
+      name: current.name || user?.name || '',
+      phone: current.phone || user?.phone || '',
+    }));
+  }, [user?.name, user?.phone]);
 
   const handleOrder = async () => {
     try {

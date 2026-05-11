@@ -3,7 +3,8 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout, selectIsAuth, selectRole } from '@/store/slices/authSlice';
+import { logout, selectAuthReady, selectIsAuth, selectRole } from '@/store/slices/authSlice';
+import { useLogoutMutation } from '@/store/api/authApi';
 import {
   useApproveArtisanMutation,
   useDeleteUserMutation,
@@ -35,20 +36,32 @@ const WORKSHOP_STATUS_LABELS = {
   cancelled: 'ملغاة',
 };
 
+function resolveAdminRedirect(isAuth, role) {
+  if (!isAuth) return '/admin/login';
+  if (role === 'artisan') return '/dashboard/artisan';
+  if (role === 'customer') return '/dashboard';
+  return '/';
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const isReady = useSelector(selectAuthReady);
   const role = useSelector(selectRole);
   const isAuth = useSelector(selectIsAuth);
   const [tab, setTab] = useState(0);
   const [search, setSearch] = useState('');
+  const allowAdminQueries = isReady && isAuth && role === 'admin';
 
-  const { data: statsData } = useGetAdminStatsQuery();
-  const { data: usersData } = useGetAllUsersQuery({ search });
-  const { data: ordersData } = useGetAllOrdersQuery({});
-  const { data: productsData } = useGetAllAdminProductsQuery({});
-  const { data: workshopsData } = useGetAdminWorkshopsQuery({ status: 'all', limit: 50 });
-  const { data: pendingData } = useGetPendingArtisansQuery();
+  const { data: statsData } = useGetAdminStatsQuery(undefined, { skip: !allowAdminQueries });
+  const { data: usersData } = useGetAllUsersQuery({ search }, { skip: !allowAdminQueries });
+  const { data: ordersData } = useGetAllOrdersQuery({}, { skip: !allowAdminQueries });
+  const { data: productsData } = useGetAllAdminProductsQuery({}, { skip: !allowAdminQueries });
+  const { data: workshopsData } = useGetAdminWorkshopsQuery(
+    { status: 'all', limit: 50 },
+    { skip: !allowAdminQueries }
+  );
+  const { data: pendingData } = useGetPendingArtisansQuery(undefined, { skip: !allowAdminQueries });
 
   const [approveArtisan] = useApproveArtisanMutation();
   const [deleteUser] = useDeleteUserMutation();
@@ -57,14 +70,17 @@ export default function AdminDashboard() {
   const [deleteWorkshop] = useDeleteWorkshopMutation();
   const [updateWorkshop] = useUpdateWorkshopMutation();
   const [updateStatus] = useUpdateOrderStatusMutation();
+  const [logoutRequest] = useLogoutMutation();
 
   useEffect(() => {
-    if (isAuth === false || (role && role !== 'admin')) {
-      router.replace('/admin/login');
-    }
-  }, [isAuth, role, router]);
+    if (!isReady) return;
 
-  if (!isAuth || role !== 'admin') {
+    if (!isAuth || role !== 'admin') {
+      router.replace(resolveAdminRedirect(isAuth, role));
+    }
+  }, [isAuth, isReady, role, router]);
+
+  if (!isReady || !isAuth || role !== 'admin') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)' }}>
         <div style={{ textAlign: 'center' }}>
@@ -157,9 +173,15 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    router.replace('/admin/login');
+  const handleLogout = async () => {
+    try {
+      await logoutRequest().unwrap();
+    } catch {
+    } finally {
+      dispatch(logout());
+      router.replace('/admin/login');
+      router.refresh();
+    }
   };
 
   return (

@@ -31,7 +31,7 @@ const levelLabel = {
 
 export default function WorkshopsPage() {
   const router = useRouter();
-  const { isAuth, isCustomer } = useAuth();
+  const { isArtisan, isAuth, isCustomer } = useAuth();
   const [page, setPage] = useState(1);
   const [locationType, setLocationType] = useState('');
   const [skillLevel, setSkillLevel] = useState('');
@@ -48,6 +48,7 @@ export default function WorkshopsPage() {
   const [bookWorkshop, { isLoading: booking }] = useBookWorkshopMutation();
   const workshops = data?.data || [];
   const totalPages = data?.totalPages || 1;
+  const canBookWorkshop = isCustomer || isArtisan;
 
   const handleBook = async (workshop) => {
     if (!isAuth) {
@@ -55,7 +56,7 @@ export default function WorkshopsPage() {
       router.push('/login');
       return;
     }
-    if (!isCustomer) {
+    if (!canBookWorkshop) {
       toast.warning('الحجز متاح لحسابات العملاء فقط');
       return;
     }
